@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="域名重定向重定向flftuu.site -&amp;gt; flftuu.com 12345server &amp;#123;    listen 80;    server_name flftuu.site, www.flftuu.site;    rewrite &quot;^/(.*)$&quot; https://www.flftuu.com/$1 permanent;&amp;#125;">
+<meta name="keywords" content="nginx">
+<meta property="og:type" content="article">
+<meta property="og:title" content="nginx虚拟主机+域名重定向">
+<meta property="og:url" content="https://www.flftuu.com/2019/03/29/nginx虚拟主机-域名重定向/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="域名重定向重定向flftuu.site -&amp;gt; flftuu.com 12345server &amp;#123;    listen 80;    server_name flftuu.site, www.flftuu.site;    rewrite &quot;^/(.*)$&quot; https://www.flftuu.com/$1 permanent;&amp;#125;">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-04-02T12:50:45.920Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="nginx虚拟主机+域名重定向">
+<meta name="twitter:description" content="域名重定向重定向flftuu.site -&amp;gt; flftuu.com 12345server &amp;#123;    listen 80;    server_name flftuu.site, www.flftuu.site;    rewrite &quot;^/(.*)$&quot; https://www.flftuu.com/$1 permanent;&amp;#125;">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2019/03/29/nginx虚拟主机-域名重定向/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>nginx虚拟主机+域名重定向 | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2019/03/29/nginx虚拟主机-域名重定向/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">nginx虚拟主机+域名重定向
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-29 11:39:42" itemprop="dateCreated datePublished" datetime="2019-03-29T11:39:42+08:00">2019-03-29</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-04-02 20:50:45" itemprop="dateModified" datetime="2019-04-02T20:50:45+08:00">2019-04-02</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Linux/" itemprop="url" rel="index"><span itemprop="name">Linux</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2019/03/29/nginx虚拟主机-域名重定向/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/03/29/nginx虚拟主机-域名重定向/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">10k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">9 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><p><amp-auto-ads type="adsense" data-ad-client="ca-pub-5216394795966395"></amp-auto-ads></p>
+<h1 id="域名重定向"><a href="#域名重定向" class="headerlink" title="域名重定向"></a>域名重定向</h1><p>重定向flftuu.site -> flftuu.com</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">server {</div><div class="line">    listen 80;</div><div class="line">    server_name flftuu.site, www.flftuu.site;</div><div class="line">    rewrite <span class="string">"^/(.*)$"</span> https://www.flftuu.com/<span class="variable">$1</span> permanent;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<a id="more"></a>
+<h1 id="nginx-虚拟机主机"><a href="#nginx-虚拟机主机" class="headerlink" title="nginx 虚拟机主机"></a>nginx 虚拟机主机</h1><p>http 选项中包含多个 server<br>server 中server_name 设置不通域名实现多虚拟机功能</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">server {</div><div class="line"><span class="comment">#        listen       80 default_server;</span></div><div class="line"><span class="comment">#        listen       [::]:80 default_server;</span></div><div class="line"><span class="comment">#        server_name  _;</span></div><div class="line"><span class="comment">#        root         /usr/share/nginx/html;</span></div><div class="line"><span class="comment">#</span></div><div class="line"><span class="comment">#        # Load configuration files for the default server block.</span></div><div class="line"><span class="comment">#        include /etc/nginx/default.d/*.conf;</span></div><div class="line"><span class="comment">#</span></div><div class="line"><span class="comment">#        location / {</span></div><div class="line"><span class="comment">#        }</span></div><div class="line"><span class="comment">#</span></div><div class="line"><span class="comment">#        error_page 404 /404.html;</span></div><div class="line"><span class="comment">#            location = /40x.html {</span></div><div class="line"><span class="comment">#        }</span></div><div class="line"><span class="comment">#</span></div><div class="line"><span class="comment">#        error_page 500 502 503 504 /50x.html;</span></div><div class="line"><span class="comment">#            location = /50x.html {</span></div><div class="line"><span class="comment">#        }</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h1 id="nginx-配置详解"><a href="#nginx-配置详解" class="headerlink" title="nginx 配置详解"></a>nginx 配置详解</h1><p>在了解具体的Nginx配置项之前我们需要对于Nginx配置文件的构成有所概念，一般来说，Nginx配置文件会由如下几个部分构成：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 全局块</span></div><div class="line">...              </div><div class="line"><span class="comment"># events块</span></div><div class="line">events {         </div><div class="line">   ...</div><div class="line">}</div><div class="line"><span class="comment"># http块</span></div><div class="line">http      </div><div class="line">{</div><div class="line">    <span class="comment"># http全局块</span></div><div class="line">    ...   </div><div class="line">    <span class="comment"># 虚拟主机server块</span></div><div class="line">    server        </div><div class="line">    { </div><div class="line">        <span class="comment"># server全局块</span></div><div class="line">        ...       </div><div class="line">        <span class="comment"># location块</span></div><div class="line">        location [PATTERN]   </div><div class="line">        {</div><div class="line">            ...</div><div class="line">        }</div><div class="line">        location [PATTERN] </div><div class="line">        {</div><div class="line">            ...</div><div class="line">        }</div><div class="line">    }</div><div class="line">    server</div><div class="line">    {</div><div class="line">      ...</div><div class="line">    }</div><div class="line">    <span class="comment"># http全局块</span></div><div class="line">    ...     </div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p>在上述配置中我们可以看出，Nginx配置文件由以下几个部分构成：</p>
+<ul>
+<li>全局块：配置影响nginx全局的指令。一般有运行nginx服务器的用户组，nginx进程pid存放路径，日志存放路径，配置文件引入，允许生成worker process数等。</li>
+<li>events块：配置影响nginx服务器或与用户的网络连接。有每个进程的最大连接数，选取哪种事件驱动模型处理连接请求，是否允许同时接受多个网路连接，开启多个网络连接序列化等。</li>
+<li>http块：可以嵌套多个server，配置代理，缓存，日志定义等绝大多数功能和第三方模块的配置。如文件引入，mime-type定义，日志自定义，是否使用sendfile传输文件，连接超时时间，单连接请求数等。</li>
+<li>server块：配置虚拟主机的相关参数，一个http中可以有多个server。</li>
+<li>location块：配置请求的路由，以及各种页面的处理情况。</li>
+</ul>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div></pre></td><td class="code"><pre><div class="line"><span class="comment">########### 每个指令必须有分号结束。#################</span></div><div class="line"><span class="comment">#user administrator administrators;  #配置用户或者组，默认为nobody nobody。</span></div><div class="line"><span class="comment">#worker_processes 2;  #允许生成的进程数，默认为1</span></div><div class="line"><span class="comment">#pid /nginx/pid/nginx.pid;   #指定nginx进程运行文件存放地址</span></div><div class="line">error_log <span class="built_in">log</span>/error.log debug;  <span class="comment">#制定日志路径，级别。这个设置可以放入全局块，http块，server块，级别以此为：debug|info|notice|warn|error|crit|alert|emerg</span></div><div class="line">events {</div><div class="line">    accept_mutex on;   <span class="comment">#设置网路连接序列化，防止惊群现象发生，默认为on</span></div><div class="line">    multi_accept on;  <span class="comment">#设置一个进程是否同时接受多个网络连接，默认为off</span></div><div class="line">    <span class="comment">#use epoll;      #事件驱动模型，select|poll|kqueue|epoll|resig|/dev/poll|eventport</span></div><div class="line">    worker_connections  1024;    <span class="comment">#最大连接数，默认为512</span></div><div class="line">}</div><div class="line">http {</div><div class="line">    include       mime.types;   <span class="comment">#文件扩展名与文件类型映射表</span></div><div class="line">    default_type  application/octet-stream; <span class="comment">#默认文件类型，默认为text/plain</span></div><div class="line">    <span class="comment">#access_log off; #取消服务日志    </span></div><div class="line">    log_format myFormat <span class="string">'$remote_addr–$remote_user [$time_local] $request $status $body_bytes_sent $http_referer $http_user_agent $http_x_forwarded_for'</span>; <span class="comment">#自定义格式</span></div><div class="line">    access_log <span class="built_in">log</span>/access.log myFormat;  <span class="comment">#combined为日志格式的默认值</span></div><div class="line">    sendfile on;   <span class="comment">#允许sendfile方式传输文件，默认为off，可以在http块，server块，location块。</span></div><div class="line">    sendfile_max_chunk 100k;  <span class="comment">#每个进程每次调用传输数量不能大于设定的值，默认为0，即不设上限。</span></div><div class="line">    keepalive_timeout 65;  <span class="comment">#连接超时时间，默认为75s，可以在http，server，location块。</span></div><div class="line"></div><div class="line">    <span class="comment"># 定义常量</span></div><div class="line">    upstream mysvr {   </div><div class="line">      server 127.0.0.1:7878;</div><div class="line">      server 192.168.10.121:3333 backup;  <span class="comment">#热备</span></div><div class="line">    }</div><div class="line">    error_page 404 https://www.baidu.com; <span class="comment">#错误页 </span></div><div class="line"></div><div class="line">    <span class="comment">#定义某个负载均衡服务器   </span></div><div class="line">    server {</div><div class="line">        keepalive_requests 120; <span class="comment">#单连接请求上限次数。</span></div><div class="line">        listen       4545;   <span class="comment">#监听端口</span></div><div class="line">        server_name  127.0.0.1;   <span class="comment">#监听地址       </span></div><div class="line">        location  ~*^.+$ {       <span class="comment">#请求的url过滤，正则匹配，~为区分大小写，~*为不区分大小写。</span></div><div class="line">           <span class="comment">#root path;  #根目录</span></div><div class="line">           <span class="comment">#index vv.txt;  #设置默认页</span></div><div class="line">           proxy_pass  http://mysvr;  <span class="comment">#请求转向mysvr 定义的服务器列表</span></div><div class="line">           deny 127.0.0.1;  <span class="comment">#拒绝的ip</span></div><div class="line">           allow 172.18.5.54; <span class="comment">#允许的ip           </span></div><div class="line">        } </div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h2 id="虚拟主机与静态站点"><a href="#虚拟主机与静态站点" class="headerlink" title="虚拟主机与静态站点"></a>虚拟主机与静态站点</h2><p><span class="exturl" data-url="aHR0cHM6Ly9kb2NzLm5naW54LmNvbS9uZ2lueC9hZG1pbi1ndWlkZS93ZWItc2VydmVyL3NlcnZpbmctc3RhdGljLWNvbnRlbnQv" title="https://docs.nginx.com/nginx/admin-guide/web-server/serving-static-content/">官方文档<i class="fa fa-external-link"></i></span></p>
+<p>本部分概述如何配置Nginx进行静态内容服务，Nginx的静态内容分发能力还是非常强大的。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line">http {</div><div class="line"> server {</div><div class="line">     listen          80;</div><div class="line">     server_name     www.domain1.com;</div><div class="line">     access_log      logs/domain1.access.log main;</div><div class="line">     location / {</div><div class="line">         index index.html;</div><div class="line">         root  /var/www/domain1.com/htdocs;</div><div class="line">     }</div><div class="line"> }</div><div class="line"> server {</div><div class="line">     listen          80;</div><div class="line">     server_name     www.domain2.com;</div><div class="line">     access_log      logs/domain2.access.log main;</div><div class="line">     location / {</div><div class="line">         index index.html;</div><div class="line">         root  /var/www/domain2.com/htdocs;</div><div class="line">     }</div><div class="line"> }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h2 id="虚拟主机配置详解"><a href="#虚拟主机配置详解" class="headerlink" title="虚拟主机配置详解"></a>虚拟主机配置详解</h2><h3 id="主机与端口"><a href="#主机与端口" class="headerlink" title="主机与端口"></a>主机与端口</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 支持多域名配置</span></div><div class="line">server_name www.barretlee.com barretlee.com;</div><div class="line"><span class="comment"># 支持泛域名解析</span></div><div class="line">server_name *.barretlee.com;</div><div class="line"><span class="comment"># 支持对于域名的正则匹配</span></div><div class="line">server_name ~^\.barret\.com$;</div></pre></td></tr></tbody></table></figure>
+<h3 id="URI匹配"><a href="#URI匹配" class="headerlink" title="URI匹配"></a>URI匹配</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">location = / {</div><div class="line">    <span class="comment"># 完全匹配  =</span></div><div class="line">    <span class="comment"># 大小写敏感 ~</span></div><div class="line">    <span class="comment"># 忽略大小写 ~*</span></div><div class="line">}</div><div class="line">location ^~ /images/ {</div><div class="line">    <span class="comment"># 前半部分匹配 ^~</span></div><div class="line">    <span class="comment"># 可以使用正则，如：</span></div><div class="line">    <span class="comment"># location ~* \.(gif|jpg|png)$ { }</span></div><div class="line">}</div><div class="line">location / {</div><div class="line">    <span class="comment"># 如果以上都未匹配，会进入这里</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h2 id="文件路径配置"><a href="#文件路径配置" class="headerlink" title="文件路径配置"></a>文件路径配置</h2><h3 id="根目录"><a href="#根目录" class="headerlink" title="根目录"></a>根目录</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">location / {</div><div class="line">    root /home/barret/<span class="built_in">test</span>/;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="别名"><a href="#别名" class="headerlink" title="别名"></a>别名</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">location /blog {</div><div class="line">    <span class="built_in">alias</span> /home/barret/www/blog/;</div><div class="line">}</div><div class="line">location ~ ^/blog/(\d+)/([\w-]+)$ {</div><div class="line">    <span class="comment"># /blog/20141202/article-name  </span></div><div class="line">    <span class="comment"># -> /blog/20141202-article-name.md</span></div><div class="line">    <span class="built_in">alias</span> /home/barret/www/blog/<span class="variable">$1</span>-<span class="variable">$2</span>.md;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="首页"><a href="#首页" class="headerlink" title="首页"></a>首页</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">index /html/index.html /php/index.php;</div></pre></td></tr></tbody></table></figure>
+<h3 id="重定向页面"><a href="#重定向页面" class="headerlink" title="重定向页面"></a>重定向页面</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">error_page    404         /404.html;</div><div class="line">error_page    502  503    /50x.html;</div><div class="line">error_page    404  =200   /1x1.gif;</div><div class="line">location / {</div><div class="line">    error_page  404 @fallback;</div><div class="line">}</div><div class="line">location @fallback {</div><div class="line">    <span class="comment"># 将请求反向代理到上游服务器处理</span></div><div class="line">    proxy_pass http://localhost:9000;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="try-files"><a href="#try-files" class="headerlink" title="try_files"></a>try_files</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">try_files <span class="variable">$uri</span> <span class="variable">$uri</span>.html <span class="variable">$uri</span>/index.html @other;</div><div class="line">location @other {</div><div class="line">    <span class="comment"># 尝试寻找匹配 uri 的文件，失败了就会转到上游处理</span></div><div class="line">    proxy_pass  http://localhost:9000;</div><div class="line">}</div><div class="line">location / {</div><div class="line">    <span class="comment"># 尝试寻找匹配 uri 的文件，没找到直接返回 502</span></div><div class="line">    try_files <span class="variable">$uri</span> <span class="variable">$uri</span>.html =502;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="缓存配置"><a href="#缓存配置" class="headerlink" title="缓存配置"></a>缓存配置</h3><p><span class="exturl" data-url="aHR0cHM6Ly9zZWdtZW50ZmF1bHQuY29tL2EvMTE5MDAwMDAwNjY4OTc5NQ==" title="https://segmentfault.com/a/1190000006689795">缓存<i class="fa fa-external-link"></i></span></p>
+<h4 id="Expire-过期时间"><a href="#Expire-过期时间" class="headerlink" title="Expire:过期时间"></a>Expire:过期时间</h4><p>在Nginx中可以配置缓存的过期时间：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">location ~* \.(?:ico|css|js|gif|jpe?g|png)$ {</div><div class="line">       expires 30d;</div><div class="line">       add_header Vary Accept-Encoding;</div><div class="line">               access_log off;</div><div class="line">   }</div></pre></td></tr></tbody></table></figure>
+<p>我们也可以添加更复杂的配置项：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">location ~* ^.+\.(?:css|cur|js|jpe?g|gif|htc|ico|png|html|xml|otf|ttf|eot|woff|svg)$ {</div><div class="line"></div><div class="line">        access_log off;</div><div class="line">        expires 30d;</div><div class="line">        <span class="comment">## No need to bleed constant updates. Send the all shebang in one</span></div><div class="line">        <span class="comment">## fell swoop.</span></div><div class="line">        tcp_nodelay off;</div><div class="line">        <span class="comment">## Set the OS file cache.</span></div><div class="line">        open_file_cache max=3000 inactive=120s;</div><div class="line">        open_file_cache_valid 45s;</div><div class="line">        open_file_cache_min_uses 2;</div><div class="line">        open_file_cache_errors off;</div><div class="line">    }</div></pre></td></tr></tbody></table></figure>
+<h3 id="反向代理"><a href="#反向代理" class="headerlink" title="反向代理"></a>反向代理</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">events{</div><div class="line"></div><div class="line">}</div><div class="line">http{</div><div class="line">    upstream ggzy {</div><div class="line">       server 127.0.0.1:1398 weight=3;</div><div class="line">       server 127.0.0.1:1399;</div><div class="line">    }</div><div class="line">    <span class="comment"># 80端口配置，可配置多个Virtual Host</span></div><div class="line">    server {</div><div class="line">        listen  80;</div><div class="line">        index index index.htm index.py index.html;</div><div class="line"></div><div class="line">        server_name app.truelore.cn;</div><div class="line"></div><div class="line">        location / {</div><div class="line">            proxy_pass_header Server;</div><div class="line">            proxy_set_header Host <span class="variable">$http_host</span>;</div><div class="line">            proxy_set_header X-Real-IP <span class="variable">$remote_addr</span>;</div><div class="line">            proxy_set_header X-Scheme <span class="variable">$scheme</span>;</div><div class="line">            proxy_pass http//ggzy;</div><div class="line">        }</div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="NodeJS-Application"><a href="#NodeJS-Application" class="headerlink" title="NodeJS Application"></a>NodeJS Application</h3><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">const http = require(<span class="string">'http'</span>);</div><div class="line">http.createServer((req, res) => {</div><div class="line">    res.end(<span class="string">'hello world'</span>);</div><div class="line">}).listen(9000);</div></pre></td></tr></tbody></table></figure>
+<p>任何请求过来都返回 hello world，简版的 Nginx 配置如下，</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">events {</div><div class="line">    <span class="comment"># 这里可不写东西</span></div><div class="line">    use epoll;</div><div class="line">}</div><div class="line">http {</div><div class="line">    server {</div><div class="line">        listen 127.0.0.1:8888;</div><div class="line">        <span class="comment"># 如果请求路径跟文件路径按照如下方式匹配找到了，直接返回</span></div><div class="line">        try_files <span class="variable">$uri</span> <span class="variable">$uri</span>/index.html;</div><div class="line">        location ~* ^/(js|css|image|font)/$ {</div><div class="line">            <span class="comment"># 静态资源都在 static 文件夹下</span></div><div class="line">            root /home/barret/www/static/;</div><div class="line">        }</div><div class="line">        location /app {</div><div class="line">            <span class="comment"># Node.js 在 9000 开了一个监听端口</span></div><div class="line">            proxy_pass http://127.0.0.1:9000;</div><div class="line">        }</div><div class="line">        <span class="comment"># 上面处理出错或者未找到的，返回对应状态码文件</span></div><div class="line">        error_page    404            /404.html;</div><div class="line">        error_page    502  503  504  /50x.html;</div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p>首先 try_files，尝试直接匹配文件；没找到就匹配静态资源；还没找到就交给 Node 处理；否则就返回 4xx/5xx 的状态码。</p>
+<h3 id="Upstream-Cache"><a href="#Upstream-Cache" class="headerlink" title="Upstream Cache"></a>Upstream Cache</h3><p><span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy93d3cubmdpbnguY29tL2Jsb2cvbmdpbngtY2FjaGluZy1ndWlkZS8=" title="https://link.zhihu.com/?target=https%3A//www.nginx.com/blog/nginx-caching-guide/">A Guide to Caching with NGINX and NGINX Plus<i class="fa fa-external-link"></i></span></p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">http {</div><div class="line">    ,,,,,</div><div class="line">    proxy_cache_path /var/cache/nginx/cache levels=1:2 keys_zone=imgcache:100m inactive=1d max_size=10g;</div><div class="line">    server {</div><div class="line">    ........</div><div class="line">        location ~* ^.+\.(js|ico|gif|jpg|jpeg|png|html|htm)$ {</div><div class="line">        log_not_found off;</div><div class="line">        access_log off;</div><div class="line">        expires 7d;</div><div class="line">        proxy_pass http://img.example.com ;</div><div class="line">        proxy_cache imgcache;</div><div class="line">        proxy_cache_valid 200 302 1d;</div><div class="line">        proxy_cache_valid 404 10m;</div><div class="line">        proxy_cache_valid any 1h;</div><div class="line">        proxy_cache_use_stale error timeout invalid_header updating http_500 http_502 http_503 http_504;</div><div class="line">        }</div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="HTTPS"><a href="#HTTPS" class="headerlink" title="HTTPS"></a>HTTPS</h3><p><span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy9zZWdtZW50ZmF1bHQuY29tL2EvMTE5MDAwMDAwNDk4NTI1Mw==" title="https://link.zhihu.com/?target=https%3A//segmentfault.com/a/1190000004985253">HTTPS 理论详解与实践<i class="fa fa-external-link"></i></span></p>
+<p><a href="https://www.flftuu.com/2019/03/29/openssl/#more">https证书生成方式</a></p>
+<h4 id="基本HTTPS配置"><a href="#基本HTTPS配置" class="headerlink" title="基本HTTPS配置"></a>基本HTTPS配置</h4><p>基本的HTTPS支持配置如下:</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">server {  </div><div class="line">    listen 192.168.1.11:443;  <span class="comment">#ssl端口  </span></div><div class="line">    server_name  test.com;  </div><div class="line">    <span class="comment">#为一个server{......}开启ssl支持  </span></div><div class="line">    ssl on;  </div><div class="line">    <span class="comment">#指定PEM格式的证书文件   </span></div><div class="line">    ssl_certificate      /etc/nginx/test.pem;   </div><div class="line">    <span class="comment">#指定PEM格式的私钥文件  </span></div><div class="line">    ssl_certificate_key  /etc/nginx/test.key;  </div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p>在真实的生产环境中，我们的配置如下:</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">server {</div><div class="line">    <span class="comment"># 如果需要spdy也可以加上,lnmp1.2及其后版本都默认支持spdy,lnmp1.3 nginx 1.9.5以上版本默认支持http2</span></div><div class="line">    listen 443 ssl;   </div><div class="line">    <span class="comment"># 这里是你的域名</span></div><div class="line">    server_name www.vpser.net;     </div><div class="line">    index index.html index.htm index.php default.html default.htm default.php;</div><div class="line">    <span class="comment"># 网站目录</span></div><div class="line">    root /home/wwwroot/www.vpser.net;            </div><div class="line">    <span class="comment"># 前面生成的证书，改一下里面的域名就行</span></div><div class="line">    ssl_certificate /etc/letsencrypt/live/www.vpser.net/fullchain.pem;    </div><div class="line">    <span class="comment"># 前面生成的密钥，改一下里面的域名就行</span></div><div class="line">    ssl_certificate_key /etc/letsencrypt/live/www.vpser.net/privkey.pem;   </div><div class="line">    ssl_ciphers <span class="string">"EECDH+CHACHA20:EECDH+CHACHA20-draft:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5"</span>;</div><div class="line">    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;</div><div class="line">    ssl_prefer_server_ciphers on;</div><div class="line">    ssl_session_cache shared:SSL:10m;</div><div class="line"></div><div class="line">    <span class="comment">#这个是伪静态根据自己的需求改成其他或删除</span></div><div class="line">    include wordpress.conf;  </div><div class="line">    </div><div class="line">    <span class="comment">#error_page 404 /404.html;</span></div><div class="line">    </div><div class="line">    location ~ [^/]\.php(/|$)</div><div class="line">    {</div><div class="line">        <span class="comment"># comment try_files $uri =404; to enable pathinfo</span></div><div class="line">        try_files <span class="variable">$uri</span> =404;</div><div class="line">        fastcgi_pass unix:/tmp/php-cgi.sock;</div><div class="line">        fastcgi_index index.php;</div><div class="line">        <span class="comment"># lnmp 1.0及之前版本替换为include fcgi.conf;</span></div><div class="line">        include fastcgi.conf;     </div><div class="line">        <span class="comment">#include pathinfo.conf;</span></div><div class="line">    }</div><div class="line"></div><div class="line">    location ~ .*\.(gif|jpg|jpeg|png|bmp|swf)$</div><div class="line">    {</div><div class="line">    expires 30d;</div><div class="line">    }</div><div class="line"></div><div class="line">    location ~ .*\.(js|css)?$</div><div class="line">    {</div><div class="line">    expires 12h;</div><div class="line">    }</div><div class="line"></div><div class="line">    access_log off;</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h4 id="强制HTTP转到HTTPS"><a href="#强制HTTP转到HTTPS" class="headerlink" title="强制HTTP转到HTTPS"></a>强制HTTP转到HTTPS</h4><p>Nginx Rewrite</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">server {  </div><div class="line">    listen  192.168.1.111:80;  </div><div class="line">    server_name test.com;  </div><div class="line">    rewrite ^(.*)$  https://<span class="variable">$host</span><span class="variable">$1</span> permanent;  </div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="Nginx-497错误码"><a href="#Nginx-497错误码" class="headerlink" title="Nginx 497错误码"></a>Nginx 497错误码</h3><p>利用error_page命令将497状态码的链接重定向到<span class="exturl" data-url="aHR0cHM6Ly90ZXN0LmNvbei/meS4quWfn+WQjeS4ig==" title="https://test.com这个域名上">https://test.com这个域名上<i class="fa fa-external-link"></i></span></p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">server {  </div><div class="line">    listen       192.168.1.11:443;  <span class="comment">#ssl端口  </span></div><div class="line">    listen       192.168.1.11:80;   <span class="comment">#用户习惯用http访问，加上80，后面通过497状态码让它自动跳到443端口  </span></div><div class="line">    server_name  test.com;  </div><div class="line">    <span class="comment">#为一个server{......}开启ssl支持  </span></div><div class="line">    ssl                  on;  </div><div class="line">    <span class="comment">#指定PEM格式的证书文件   </span></div><div class="line">    ssl_certificate      /etc/nginx/test.pem;   </div><div class="line">    <span class="comment">#指定PEM格式的私钥文件  </span></div><div class="line">    ssl_certificate_key  /etc/nginx/test.key;  </div><div class="line">        </div><div class="line">    <span class="comment">#让http请求重定向到https请求   </span></div><div class="line">    error_page 497  https://<span class="variable">$host</span><span class="variable">$uri</span>?<span class="variable">$args</span>;  </div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<h3 id="Meta刷新，前端跳转"><a href="#Meta刷新，前端跳转" class="headerlink" title="Meta刷新，前端跳转"></a>Meta刷新，前端跳转</h3><p>在HTTP正常返回的页面中添加meta属性：</p>
+<figure class="highlight html"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="tag"><<span class="name">html</span>></span>  </div><div class="line"><span class="tag"><<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">"refresh"</span> <span class="attr">content</span>=<span class="string">"0;url=https://test.com/"</span>></span>  </div><div class="line"><span class="tag"></<span class="name">html</span>></span></div></pre></td></tr></tbody></table></figure>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">server {  </div><div class="line">    listen 192.168.1.11:80;  </div><div class="line">    server_name test.com;  </div><div class="line">        </div><div class="line">    location / {  </div><div class="line">                <span class="comment">#index.html放在虚拟主机监听的根目录下  </span></div><div class="line">        root /srv/www/http.test.com/;  </div><div class="line">    }  </div><div class="line">        <span class="comment">#将404的页面重定向到https的首页  </span></div><div class="line">    error_page  404 https://test.com/;  </div><div class="line">}</div></pre></td></tr></tbody></table></figure></body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/10/28/nginx-geoip2-docker实现禁止某个地区或国家访问/" rel="bookmark">nginx+geoip2+docker实现禁止某个地区或国家访问</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/09/24/nginx-ldap/" rel="bookmark">nginx-ldap</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/nginx/" rel="tag"># nginx</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/28/go-micro/" rel="next" title=" go微服务框架go-micro">
+                <i class="fa fa-chevron-left"></i>  go微服务框架go-micro
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/03/29/openssl/" rel="prev" title="openssl生成SSL证书的流程">
+                openssl生成SSL证书的流程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#域名重定向"><span class="nav-number">1.</span> <span class="nav-text">域名重定向</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#nginx-虚拟机主机"><span class="nav-number">2.</span> <span class="nav-text">nginx 虚拟机主机</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#nginx-配置详解"><span class="nav-number">3.</span> <span class="nav-text">nginx 配置详解</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#虚拟主机与静态站点"><span class="nav-number">3.1.</span> <span class="nav-text">虚拟主机与静态站点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#虚拟主机配置详解"><span class="nav-number">3.2.</span> <span class="nav-text">虚拟主机配置详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#主机与端口"><span class="nav-number">3.2.1.</span> <span class="nav-text">主机与端口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#URI匹配"><span class="nav-number">3.2.2.</span> <span class="nav-text">URI匹配</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#文件路径配置"><span class="nav-number">3.3.</span> <span class="nav-text">文件路径配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#根目录"><span class="nav-number">3.3.1.</span> <span class="nav-text">根目录</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#别名"><span class="nav-number">3.3.2.</span> <span class="nav-text">别名</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#首页"><span class="nav-number">3.3.3.</span> <span class="nav-text">首页</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#重定向页面"><span class="nav-number">3.3.4.</span> <span class="nav-text">重定向页面</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#try-files"><span class="nav-number">3.3.5.</span> <span class="nav-text">try_files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#缓存配置"><span class="nav-number">3.3.6.</span> <span class="nav-text">缓存配置</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Expire-过期时间"><span class="nav-number">3.3.6.1.</span> <span class="nav-text">Expire:过期时间</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#反向代理"><span class="nav-number">3.3.7.</span> <span class="nav-text">反向代理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NodeJS-Application"><span class="nav-number">3.3.8.</span> <span class="nav-text">NodeJS Application</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Upstream-Cache"><span class="nav-number">3.3.9.</span> <span class="nav-text">Upstream Cache</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HTTPS"><span class="nav-number">3.3.10.</span> <span class="nav-text">HTTPS</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#基本HTTPS配置"><span class="nav-number">3.3.10.1.</span> <span class="nav-text">基本HTTPS配置</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#强制HTTP转到HTTPS"><span class="nav-number">3.3.10.2.</span> <span class="nav-text">强制HTTP转到HTTPS</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Nginx-497错误码"><span class="nav-number">3.3.11.</span> <span class="nav-text">Nginx 497错误码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Meta刷新，前端跳转"><span class="nav-number">3.3.12.</span> <span class="nav-text">Meta刷新，前端跳转</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

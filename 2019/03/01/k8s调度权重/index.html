@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="k8s 调度算法算法需要经过两个阶段，分别是过滤和打分，首先过滤掉一部分，保证剩余的节点都是可调度的，接着在打分阶段选出最高分节点，该节点就是scheduler的输出节点。   过滤规则 计算权重   过滤规则链接地址">
+<meta name="keywords" content="scheduler">
+<meta property="og:type" content="article">
+<meta property="og:title" content="k8s调度权重">
+<meta property="og:url" content="https://www.flftuu.com/2019/03/01/k8s调度权重/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="k8s 调度算法算法需要经过两个阶段，分别是过滤和打分，首先过滤掉一部分，保证剩余的节点都是可调度的，接着在打分阶段选出最高分节点，该节点就是scheduler的输出节点。   过滤规则 计算权重   过滤规则链接地址">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-03-19T13:05:53.220Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="k8s调度权重">
+<meta name="twitter:description" content="k8s 调度算法算法需要经过两个阶段，分别是过滤和打分，首先过滤掉一部分，保证剩余的节点都是可调度的，接着在打分阶段选出最高分节点，该节点就是scheduler的输出节点。   过滤规则 计算权重   过滤规则链接地址">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2019/03/01/k8s调度权重/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>k8s调度权重 | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2019/03/01/k8s调度权重/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">k8s调度权重
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-01 16:21:27" itemprop="dateCreated datePublished" datetime="2019-03-01T16:21:27+08:00">2019-03-01</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-03-19 21:05:53" itemprop="dateModified" datetime="2019-03-19T21:05:53+08:00">2019-03-19</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2019/03/01/k8s调度权重/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/03/01/k8s调度权重/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">3.5k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">3 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><h1 id="k8s-调度算法"><a href="#k8s-调度算法" class="headerlink" title="k8s 调度算法"></a>k8s 调度算法</h1><p>算法需要经过两个阶段，分别是过滤和打分，首先过滤掉一部分，保证剩余的节点都是可调度的，接着在打分阶段选出最高分节点，该节点就是scheduler的输出节点。</p>
+<blockquote>
+<ol>
+<li>过滤规则</li>
+<li>计算权重</li>
+</ol>
+</blockquote>
+<p><strong><a href="http://www.flftuu.com/2019/02/28/algorithm/">过滤规则链接地址</a></strong></p>
+<a id="more"></a>
+<h2 id="计算权重"><a href="#计算权重" class="headerlink" title="计算权重"></a>计算权重</h2><h3 id="默认注册权重函数13个"><a href="#默认注册权重函数13个" class="headerlink" title="默认注册权重函数13个"></a>默认注册权重函数13个</h3><table>
+<thead>
+<tr>
+<th>策略名称</th>
+<th>权重值Weight</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SelectorSpreadPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>InterPodAffinityPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>LeastRequestedPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>BalancedResourceAllocation</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>NodePreferAvoidPodsPriority</td>
+<td>10000</td>
+<td>default</td>
+</tr>
+<tr>
+<td>NodeAffinityPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>TaintTolerationPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>ImageLocalityPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>ServiceSpreadingPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>EqualPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>MostRequestedPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>RequestedToCapacityRatioPriority</td>
+<td>1</td>
+<td>default</td>
+</tr>
+<tr>
+<td>ResourceLimitsPriority</td>
+<td>1</td>
+<td>开启ResourceLimitsPriorityFunction</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ClusterAutoscalerProvider 调度器把LeastRequestedPriority 替换成MostRequestedPriority 策略</strong></p>
+<h3 id="打分源码"><a href="#打分源码" class="headerlink" title="打分源码"></a>打分源码</h3><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// PriorityConfig is a config used for a priority function.</span></div><div class="line"><span class="keyword">type</span> PriorityConfig <span class="keyword">struct</span> {</div><div class="line">	Name   <span class="keyword">string</span></div><div class="line">	Map    PriorityMapFunction</div><div class="line">	Reduce PriorityReduceFunction</div><div class="line">	<span class="comment">// <span class="doctag">TODO:</span> Remove it after migrating all functions to</span></div><div class="line">	<span class="comment">// Map-Reduce pattern.</span></div><div class="line">	Function PriorityFunction</div><div class="line">	Weight   <span class="keyword">int</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<blockquote>
+<ol>
+<li>Name 打分函数名称</li>
+<li>Map 加分方法</li>
+<li>Reduce 减分方法</li>
+<li>Function 通用方法，将废弃</li>
+<li>Weight 打分函数的权重值</li>
+</ol>
+</blockquote>
+<p><strong>打分调度顺序 Function > Map > Reduce</strong><br><strong>优先计算所有的通用性方法Fuction， 再计算打分函数的加分方法，最后计算所有打分函数的加分方法</strong></p>
+<h3 id="SelectorSpreadPriority"><a href="#SelectorSpreadPriority" class="headerlink" title="SelectorSpreadPriority"></a>SelectorSpreadPriority</h3><blockquote>
+<ul>
+<li>加分方法：CalculateSpreadPriorityMap</li>
+<li>减分方法: CalculateSpreadPriorityReduce</li>
+</ul>
+</blockquote>
+<h4 id="加分方法：CalculateSpreadPriorityMap"><a href="#加分方法：CalculateSpreadPriorityMap" class="headerlink" title="加分方法：CalculateSpreadPriorityMap"></a>加分方法：CalculateSpreadPriorityMap</h4><blockquote>
+<ol>
+<li>获取正在调度pod 有关的svc，sts，rs，rc</li>
+<li>获取该node 上的所有pod</li>
+<li>存在的pod 与正在调度的pod 是同一svc或者sts，rs，rc 则改node Score分数 +1</li>
+</ol>
+</blockquote>
+<h4 id="减分方法-CalculateSpreadPriorityReduce"><a href="#减分方法-CalculateSpreadPriorityReduce" class="headerlink" title="减分方法: CalculateSpreadPriorityReduce"></a>减分方法: CalculateSpreadPriorityReduce</h4><blockquote>
+<ol>
+<li>获取加分方法计算出所有node 的分数</li>
+<li>获取所有node 中的 最高分数</li>
+<li>如果其中有node 设置region和zone， 则获取每一个”regino::zone” 其中最高的分数</li>
+<li>获取分数常数值 MaxPriority = 10, zoneWeighting float64 = 2.0 / 3.0</li>
+<li>fScore = MaxPriorityFloat64 <em> (float64(maxCountByNodeName-result[i].Score) / maxCountByNodeNameFloat64) 注释：–> 常熟10 </em> (最大值 - 当前node的值) / 最大值</li>
+<li>score 值，通过上面计算方法则表示 在加分方法中分数越高的node 最后分数越低</li>
+<li>如果其中有region和zone设置, 则计算公式 zoneScore = MaxPriorityFloat64 <em> (float64(maxCountByZone-countsByZone[zoneID]) / maxCountByZoneFloat64)， fScore = (fScore </em> (1.0 - zoneWeighting)) + (zoneWeighting <em> zoneScore) 注释–> (常熟10 </em> (zone最大值 - 当前zone的值) / zone最大值) <em> 2/3 + node的fscore </em> 1/3</li>
+<li>score值，通过上面计算法则表示 在加分方法中分数越高的node 最后分数越低 和 不同zone的node 分数越高</li>
+</ol>
+</blockquote>
+<p><strong>总结： 相同service／rc的pods越分散，得分越高， 不通zone的node 分数越高</strong></p>
+<h3 id="InterPodAffinityPriority"><a href="#InterPodAffinityPriority" class="headerlink" title="InterPodAffinityPriority"></a>InterPodAffinityPriority</h3><blockquote>
+<ul>
+<li>通用方法 CalculateInterPodAffinityPriority</li>
+</ul>
+</blockquote>
+<h4 id="通用方法-CalculateInterPodAffinityPriority"><a href="#通用方法-CalculateInterPodAffinityPriority" class="headerlink" title="通用方法 CalculateInterPodAffinityPriority"></a>通用方法 CalculateInterPodAffinityPriority</h4><ul>
+<li>获取调度pod 上的PodAffinity 和PodAntiAffinity<ul>
+<li>需调度pod上有 PodAffinity 和PodAntiAffinity设置<ul>
+<li>获取该node上所有pod信息</li>
+<li></li>
+</ul>
+</li>
+</ul>
+</li>
+<li></li>
+</ul>
+<p><strong>总结： 通过迭代 weightedPodAffinityTerm 的元素计算和，并且如果对该节点满足相应的PodAffinityTerm，则将 “weight” 加到和中，具有最高和的节点是最优选的。</strong></p>
+<h3 id="LeastRequestedPriority"><a href="#LeastRequestedPriority" class="headerlink" title="LeastRequestedPriority"></a>LeastRequestedPriority</h3><blockquote>
+<ul>
+<li>加分方法 leastResourcePriority.PriorityMap</li>
+</ul>
+</blockquote>
+<h4 id="加分方法-leastResourcePriority-PriorityMap"><a href="#加分方法-leastResourcePriority-PriorityMap" class="headerlink" title="加分方法 leastResourcePriority.PriorityMap"></a>加分方法 leastResourcePriority.PriorityMap</h4><h3 id="BalancedResourceAllocation"><a href="#BalancedResourceAllocation" class="headerlink" title="BalancedResourceAllocation"></a>BalancedResourceAllocation</h3><blockquote>
+<ul>
+<li>加分方法 balancedResourcePriority.PriorityMap</li>
+</ul>
+</blockquote>
+<h4 id="加分方法-balancedResourcePriority-PriorityMap"><a href="#加分方法-balancedResourcePriority-PriorityMap" class="headerlink" title="加分方法 balancedResourcePriority.PriorityMap"></a>加分方法 balancedResourcePriority.PriorityMap</h4><h3 id="NodePreferAvoidPodsPriority"><a href="#NodePreferAvoidPodsPriority" class="headerlink" title="NodePreferAvoidPodsPriority"></a>NodePreferAvoidPodsPriority</h3><blockquote>
+<p>加分方法 priorities.CalculateNodePreferAvoidPodsPriorityMap</p>
+</blockquote>
+<h4 id="加分方法-priorities-CalculateNodePreferAvoidPodsPriorityMap"><a href="#加分方法-priorities-CalculateNodePreferAvoidPodsPriorityMap" class="headerlink" title="加分方法 priorities.CalculateNodePreferAvoidPodsPriorityMap"></a>加分方法 priorities.CalculateNodePreferAvoidPodsPriorityMap</h4><h3 id="NodeAffinityPriority"><a href="#NodeAffinityPriority" class="headerlink" title="NodeAffinityPriority"></a>NodeAffinityPriority</h3><blockquote>
+<ul>
+<li>加分方法 priorities.CalculateNodeAffinityPriorityMap</li>
+<li>减分方法 priorities.CalculateNodeAffinityPriorityReduce</li>
+</ul>
+</blockquote>
+<h3 id="TaintTolerationPriority"><a href="#TaintTolerationPriority" class="headerlink" title="TaintTolerationPriority"></a>TaintTolerationPriority</h3><blockquote>
+<ul>
+<li>加分方法 priorities.ComputeTaintTolerationPriorityMap</li>
+<li>减分方法 priorities.ComputeTaintTolerationPriorityReduce</li>
+</ul>
+</blockquote>
+<h3 id="ImageLocalityPriority"><a href="#ImageLocalityPriority" class="headerlink" title="ImageLocalityPriority"></a>ImageLocalityPriority</h3><blockquote>
+<ul>
+<li>加分方法 riorities.ImageLocalityPriorityMap</li>
+</ul>
+</blockquote>
+<h3 id="ServiceSpreadingPriority"><a href="#ServiceSpreadingPriority" class="headerlink" title="ServiceSpreadingPriority"></a>ServiceSpreadingPriority</h3><blockquote>
+<ul>
+<li>通 SelectorSpreadPriority 相同，以被代替</li>
+</ul>
+</blockquote>
+<h3 id="EqualPriority"><a href="#EqualPriority" class="headerlink" title="EqualPriority"></a>EqualPriority</h3><blockquote>
+<ul>
+<li>加分方法 core.EqualPriorityMap</li>
+</ul>
+</blockquote>
+<h3 id="MostRequestedPriority"><a href="#MostRequestedPriority" class="headerlink" title="MostRequestedPriority"></a>MostRequestedPriority</h3><blockquote>
+<ul>
+<li>加分方法 priorities.MostRequestedPriorityMap</li>
+</ul>
+</blockquote>
+<h3 id="RequestedToCapacityRatioPriority"><a href="#RequestedToCapacityRatioPriority" class="headerlink" title="RequestedToCapacityRatioPriority"></a>RequestedToCapacityRatioPriority</h3><blockquote>
+<ul>
+<li>加分方法 priorities.RequestedToCapacityRatioResourceAllocationPriorityDefault().PriorityMap</li>
+</ul>
+</blockquote>
+<h3 id="ResourceLimitsPriority"><a href="#ResourceLimitsPriority" class="headerlink" title="ResourceLimitsPriority"></a>ResourceLimitsPriority</h3><blockquote>
+<ul>
+<li>加分方法 priorities.ResourceLimitsPriorityMap</li>
+</ul>
+</blockquote>
+</body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/01/k8s亲和性/" rel="bookmark">k8s亲和性</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/01/kube-scheduler-start/" rel="bookmark">kube-scheduler启动流程</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/01/08/leader选举源码分析/" rel="bookmark">leader选举源码分析</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/scheduler/" rel="tag"># scheduler</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/01/CNI网络架构解析/" rel="next" title="CNI网络架构解析">
+                <i class="fa fa-chevron-left"></i> CNI网络架构解析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/03/05/flannel优化方案/" rel="prev" title="flannel优化方案">
+                flannel优化方案 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#k8s-调度算法"><span class="nav-number">1.</span> <span class="nav-text">k8s 调度算法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#计算权重"><span class="nav-number">1.1.</span> <span class="nav-text">计算权重</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#默认注册权重函数13个"><span class="nav-number">1.1.1.</span> <span class="nav-text">默认注册权重函数13个</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#打分源码"><span class="nav-number">1.1.2.</span> <span class="nav-text">打分源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SelectorSpreadPriority"><span class="nav-number">1.1.3.</span> <span class="nav-text">SelectorSpreadPriority</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#加分方法：CalculateSpreadPriorityMap"><span class="nav-number">1.1.3.1.</span> <span class="nav-text">加分方法：CalculateSpreadPriorityMap</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#减分方法-CalculateSpreadPriorityReduce"><span class="nav-number">1.1.3.2.</span> <span class="nav-text">减分方法: CalculateSpreadPriorityReduce</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#InterPodAffinityPriority"><span class="nav-number">1.1.4.</span> <span class="nav-text">InterPodAffinityPriority</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#通用方法-CalculateInterPodAffinityPriority"><span class="nav-number">1.1.4.1.</span> <span class="nav-text">通用方法 CalculateInterPodAffinityPriority</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#LeastRequestedPriority"><span class="nav-number">1.1.5.</span> <span class="nav-text">LeastRequestedPriority</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#加分方法-leastResourcePriority-PriorityMap"><span class="nav-number">1.1.5.1.</span> <span class="nav-text">加分方法 leastResourcePriority.PriorityMap</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#BalancedResourceAllocation"><span class="nav-number">1.1.6.</span> <span class="nav-text">BalancedResourceAllocation</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#加分方法-balancedResourcePriority-PriorityMap"><span class="nav-number">1.1.6.1.</span> <span class="nav-text">加分方法 balancedResourcePriority.PriorityMap</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NodePreferAvoidPodsPriority"><span class="nav-number">1.1.7.</span> <span class="nav-text">NodePreferAvoidPodsPriority</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#加分方法-priorities-CalculateNodePreferAvoidPodsPriorityMap"><span class="nav-number">1.1.7.1.</span> <span class="nav-text">加分方法 priorities.CalculateNodePreferAvoidPodsPriorityMap</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NodeAffinityPriority"><span class="nav-number">1.1.8.</span> <span class="nav-text">NodeAffinityPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TaintTolerationPriority"><span class="nav-number">1.1.9.</span> <span class="nav-text">TaintTolerationPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ImageLocalityPriority"><span class="nav-number">1.1.10.</span> <span class="nav-text">ImageLocalityPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ServiceSpreadingPriority"><span class="nav-number">1.1.11.</span> <span class="nav-text">ServiceSpreadingPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EqualPriority"><span class="nav-number">1.1.12.</span> <span class="nav-text">EqualPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#MostRequestedPriority"><span class="nav-number">1.1.13.</span> <span class="nav-text">MostRequestedPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RequestedToCapacityRatioPriority"><span class="nav-number">1.1.14.</span> <span class="nav-text">RequestedToCapacityRatioPriority</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ResourceLimitsPriority"><span class="nav-number">1.1.15.</span> <span class="nav-text">ResourceLimitsPriority</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

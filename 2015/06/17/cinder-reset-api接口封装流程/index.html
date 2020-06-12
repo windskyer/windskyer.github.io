@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="Cinder接口到处理函数的流程分析 当发送一个 api 请求的时候调用方法的流程:一个接口 到其 处理 函数的流程: eg : curl -g -i -X GET http://192.168.122.166:8776/v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage">
+<meta name="keywords" content="cinder">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cinder reset api接口封装流程">
+<meta property="og:url" content="https://www.flftuu.com/2015/06/17/cinder-reset-api接口封装流程/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="Cinder接口到处理函数的流程分析 当发送一个 api 请求的时候调用方法的流程:一个接口 到其 处理 函数的流程: eg : curl -g -i -X GET http://192.168.122.166:8776/v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-04-02T12:15:12.418Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="cinder reset api接口封装流程">
+<meta name="twitter:description" content="Cinder接口到处理函数的流程分析 当发送一个 api 请求的时候调用方法的流程:一个接口 到其 处理 函数的流程: eg : curl -g -i -X GET http://192.168.122.166:8776/v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2015/06/17/cinder-reset-api接口封装流程/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>cinder reset api接口封装流程 | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2015/06/17/cinder-reset-api接口封装流程/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">cinder reset api接口封装流程
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2015-06-17 13:15:33" itemprop="dateCreated datePublished" datetime="2015-06-17T13:15:33+08:00">2015-06-17</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-04-02 20:15:12" itemprop="dateModified" datetime="2019-04-02T20:15:12+08:00">2019-04-02</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Openstack/" itemprop="url" rel="index"><span itemprop="name">Openstack</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2015/06/17/cinder-reset-api接口封装流程/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2015/06/17/cinder-reset-api接口封装流程/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">13k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">12 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><p><amp-auto-ads type="adsense" data-ad-client="ca-pub-5216394795966395"></amp-auto-ads></p>
+<h1 id="Cinder接口到处理函数的流程"><a href="#Cinder接口到处理函数的流程" class="headerlink" title="Cinder接口到处理函数的流程"></a>Cinder接口到处理函数的流程</h1><p>分析 当发送一个 api 请求的时候调用方法的流程:<br>一个接口 到其 处理 函数的流程:</p>
+<p>eg : curl -g -i -X GET <span class="exturl" data-url="aHR0cDovLzE5Mi4xNjguMTIyLjE2Njo4Nzc2L3YxL2QzMmQwNjNiMDc0MTRkOTA5OWExYjE3NmU0ODk4ZDJiL29zLXF1b3RhLXNldHMvZDMyZDA2M2IwNzQxNGQ5MDk5YTFiMTc2ZTQ4OThkMmI/dXNhZ2U9RmFsc2U=" title="http://192.168.122.166:8776/v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage=False">http://192.168.122.166:8776/v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage=False<i class="fa fa-external-link"></i></span></p>
+<p>cinder.api.contrib.quotas.QuotaSetsController.show</p>
+<a id="more"></a>
+<p>根据 api-paste.ini 文件知道：</p>
+<p>request_id faultwrap sizelimit authtoken keystonecontext apiv1</p>
+<p>v1 api的封装流程–> request_id(faultwrap(sizelimit(authtoken(keystonecontext(apiv1)))))</p>
+<p>当api服务接受到 请求时候 调用的 request_id faultwrap sizelimit authtoken keystonecontext 各个类的<strong>call</strong> 方法:</p>
+<figure class="highlight python"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div><div class="line">223</div><div class="line">224</div><div class="line">225</div><div class="line">226</div><div class="line">227</div><div class="line">228</div><div class="line">229</div><div class="line">230</div><div class="line">231</div><div class="line">232</div><div class="line">233</div><div class="line">234</div><div class="line">235</div><div class="line">236</div><div class="line">237</div><div class="line">238</div><div class="line">239</div><div class="line">240</div><div class="line">241</div><div class="line">242</div><div class="line">243</div><div class="line">244</div><div class="line">245</div><div class="line">246</div><div class="line">247</div><div class="line">248</div><div class="line">249</div><div class="line">250</div><div class="line">251</div><div class="line">252</div><div class="line">253</div><div class="line">254</div><div class="line">255</div><div class="line">256</div><div class="line">257</div><div class="line">258</div><div class="line">259</div><div class="line">260</div><div class="line">261</div><div class="line">262</div><div class="line">263</div><div class="line">264</div><div class="line">265</div><div class="line">266</div><div class="line">267</div><div class="line">268</div><div class="line">269</div></pre></td><td class="code"><pre><div class="line"><span class="number">1</span>, cinder.openstack.common.middleware.request_id:RequestIdMiddleware</div><div class="line"></div><div class="line">     <span class="comment">#@ 调用其父类的__call__ 方法:</span></div><div class="line"></div><div class="line">     cinder.openstack.common.middleware.request_id:RequestIdMiddleware</div><div class="line"></div><div class="line">     <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self, req)</span>:</span></div><div class="line"></div><div class="line">         <span class="comment">#@ req = Request: GET /v1/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b?usage=False HTTP/1.0</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Accept: application/json</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Accept-Encoding: gzip, deflate, sdch</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Accept-Language: zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.4</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Cache-Control: no-cache</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Connection: keep-alive</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Content-Type: text/plain</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Csp: active</span></div><div class="line"></div><div class="line">         <span class="comment">#@ Host: 192.168.122.166:8776</span></div><div class="line"></div><div class="line">         <span class="comment">#@ User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36</span></div><div class="line"></div><div class="line">         <span class="comment">#@ X-Auth-Token: 0ede531e8d774ebcb7689f20bef0caca</span></div><div class="line"></div><div class="line">         response = self.process_request(req)</div><div class="line"></div><div class="line">         <span class="comment">#@ 该函数功能就是 设置请求req 的id 然后加入到请求的变量中</span></div><div class="line"></div><div class="line">         <span class="comment">#@ def process_request(self, req):</span></div><div class="line"></div><div class="line">         <span class="comment">#@    self.req_id = context.generate_request_id()</span></div><div class="line"></div><div class="line">               self.req_id = str: req<span class="number">-8e464</span>c2e<span class="number">-90</span>b2<span class="number">-4</span>b28-b321<span class="number">-1e3486</span>dde93a</div><div class="line"></div><div class="line">                 <span class="comment">#@cinder.openstack.common.context</span></div><div class="line"></div><div class="line">                 <span class="comment">#@ def generate_request_id():</span></div><div class="line"></div><div class="line">                 <span class="comment">#@     return 'req-%s' % uuidutils.generate_uuid()</span></div><div class="line"></div><div class="line">                             <span class="comment">#@ str(uuid.uuid4())</span></div><div class="line"></div><div class="line">                         <span class="comment">#@ str: req-8e464c2e-90b2-4b28-b321-1e3486dde93a</span></div><div class="line"></div><div class="line">         <span class="comment">#@    req.environ[ENV_REQUEST_ID] = self.req_id</span></div><div class="line"></div><div class="line">               req.environ[ENV_REQUEST_ID]  = req<span class="number">-8e464</span>c2e<span class="number">-90</span>b2<span class="number">-4</span>b28-b321<span class="number">-1e3486</span>dde93a</div><div class="line"></div><div class="line">         <span class="keyword">if</span> response:</div><div class="line"></div><div class="line">             <span class="comment">#@ response = None</span></div><div class="line"></div><div class="line">             <span class="keyword">return</span> response</div><div class="line"></div><div class="line">         response = req.get_response(self.application)</div><div class="line"></div><div class="line">             <span class="comment">#@ req.get_response 会调用cinder.api.middleware.fault:FaultWrapper 类的 __call__ 方法</span></div><div class="line"></div><div class="line">                 <span class="comment">#@ 分析 会调用cinder.api.middleware.fault:FaultWrapper.__call__ 方法</span></div><div class="line"></div><div class="line">                 <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self, req)</span>:</span></div><div class="line"></div><div class="line">                     <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                         <span class="keyword">return</span> req.get_response(self.application)</div><div class="line"></div><div class="line">                             <span class="comment">#@ 分析 会调用 cinder.api.middleware.sizelimit:RequestBodySizeLimiter.__call__ 方法</span></div><div class="line"></div><div class="line">                                 <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self, req)</span>:</span></div><div class="line"></div><div class="line">                                     <span class="comment">#@ req.content_length = None </span></div><div class="line"></div><div class="line">                                     <span class="keyword">if</span> req.content_length > CONF.osapi_max_request_body_size:</div><div class="line"></div><div class="line">                                         <span class="comment">#@ 判断 请求的长度是否大于 配置文件中的 osapi_max_request_body_size= 114688</span></div><div class="line"></div><div class="line">                                         msg = _(<span class="string">"Request is too large."</span>)</div><div class="line"></div><div class="line">                                         <span class="keyword">raise</span> webob.exc.HTTPRequestEntityTooLarge(explanation=msg)</div><div class="line"></div><div class="line">                                     <span class="keyword">if</span> req.content_length <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">and</span> req.is_body_readable:</div><div class="line"></div><div class="line">                                         limiter = LimitingReader(req.body_file,</div><div class="line"></div><div class="line">                                                          CONF.osapi_max_request_body_size)</div><div class="line"></div><div class="line">                                     req.body_file = limiter</div><div class="line"></div><div class="line">                                     <span class="keyword">return</span> self.application</div><div class="line"></div><div class="line">                                         <span class="comment">#@ 分析 cinder.api.middleware.sizelimit:RequestBodySizeLimiter 类的作用是在 检查 req bady 的长度</span></div><div class="line"></div><div class="line">                                         <span class="comment">#@ 分析 会调用keystoneclient.middleware.auth_token:filter_factory.__call__ 方法</span></div><div class="line"></div><div class="line">                                         <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self, env, start_response)</span>:</span></div><div class="line"></div><div class="line">                                             self.LOG.debug(<span class="string">'Authenticating user token'</span>)</div><div class="line"></div><div class="line">                                             <span class="comment">#@ env = dict: {'HTTP_CSP': 'active', 'SCRIPT_NAME': '/v1', 'webob.adhoc_attrs': {'response': }, 'REQUEST_METHOD': 'GET', 'PATH_INFO': '/d32d063b07414d9099a1b176e4898d2b/os-quota-sets/d32d063b07414d9099a1b176e4898d2b', 'SERVER_PROTOCOL': 'HTTP/1.0', 'QUERY_STRING': 'usage=False', 'HTTP_X_AUTH_TOKEN': '0ede531e8d774ebcb7689f20bef0caca', 'HTTP_USER_AGENT': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36', 'HTTP_CONNECTION': 'keep-alive', 'REMOTE_PORT': '32828', 'SERVER_NAME': '192.168.122.166', 'REMOTE_ADDR': '192.168.122.1', 'eventlet.input': , 'wsgi.url_scheme': 'http', 'SERVER_PORT': '8776', 'wsgi.input': , 'HTTP_HOST': '192.168.122.166:8776', 'wsgi.multithread': True, 'HTTP_CACHE_CONTROL': 'no-cache', 'eventlet.posthooks': [], 'HTTP_ACCEPT': 'application/json', 'openstack.request_id': 'req-78794fde-a219-40be-a181-d416d8a4d29e...</span></div><div class="line"></div><div class="line">                                             self._token_cache.initialize(env)</div><div class="line"></div><div class="line">                                             <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                                                 self._remove_auth_headers(env)</div><div class="line"></div><div class="line">                                                 user_token = self._get_user_token_from_header(env)</div><div class="line"></div><div class="line">                                                 token_info = self._validate_user_token(user_token, env)</div><div class="line"></div><div class="line">                                                 <span class="comment">#@ 验证token 方法</span></div><div class="line"></div><div class="line">                                                 env[<span class="string">'keystone.token_info'</span>] = token_info</div><div class="line"></div><div class="line">                                                 user_headers = self._build_user_headers(token_info)</div><div class="line"></div><div class="line">                                                 self._add_headers(env, user_headers)</div><div class="line"></div><div class="line">                                                 <span class="keyword">return</span> self.app(env, start_response)</div><div class="line"></div><div class="line">                                             <span class="keyword">except</span> InvalidUserToken:</div><div class="line"></div><div class="line">                                                 <span class="keyword">if</span> self.delay_auth_decision:</div><div class="line"></div><div class="line">                                                     self.LOG.info(</div><div class="line"></div><div class="line">                                                         <span class="string">'Invalid user token - deferring reject downstream'</span>)</div><div class="line"></div><div class="line">                                                     self._add_headers(env, {<span class="string">'X-Identity-Status'</span>: <span class="string">'Invalid'</span>})</div><div class="line"></div><div class="line">                                                     <span class="keyword">return</span> self.app(env, start_response)</div><div class="line"></div><div class="line">                                                 <span class="keyword">else</span>:</div><div class="line"></div><div class="line">                                                     self.LOG.info(<span class="string">'Invalid user token - rejecting request'</span>)</div><div class="line"></div><div class="line">                                                     <span class="keyword">return</span> self._reject_request(env, start_response)</div><div class="line"></div><div class="line">                                             <span class="keyword">except</span> ServiceError <span class="keyword">as</span> e:</div><div class="line"></div><div class="line">                                                 self.LOG.critical(<span class="string">'Unable to obtain admin token: %s'</span>, e)</div><div class="line"></div><div class="line">                                                 resp = MiniResp(<span class="string">'Service unavailable'</span>, env)</div><div class="line"></div><div class="line">                                                 start_response(<span class="string">'503 Service Unavailable'</span>, resp.headers)</div><div class="line"></div><div class="line">                                                 <span class="keyword">return</span> resp.body</div><div class="line"></div><div class="line">                                         <span class="comment">#@ 分析 keystoneclient.middleware.auth_token:filter_factory 验证 token</span></div><div class="line"></div><div class="line">                                         <span class="comment">#@ 分析 cinder.api.middleware.auth:CinderKeystoneContext.__call__ 方法</span></div><div class="line"></div><div class="line"><span class="meta">                                                 @webob.dec.wsgify(RequestClass=base_wsgi.Request)</span></div><div class="line"></div><div class="line">                                                 <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self, req)</span>:</span></div><div class="line"></div><div class="line">                                                     user_id = req.headers.get(<span class="string">'X_USER'</span>)</div><div class="line"></div><div class="line">                                                     user_id = req.headers.get(<span class="string">'X_USER_ID'</span>, user_id)</div><div class="line"></div><div class="line">                                                     <span class="keyword">if</span> user_id <span class="keyword">is</span> <span class="keyword">None</span>:</div><div class="line"></div><div class="line">                                                         LOG.debug(<span class="string">"Neither X_USER_ID nor X_USER found in request"</span>)</div><div class="line"></div><div class="line">                                                         <span class="keyword">return</span> webob.exc.HTTPUnauthorized()</div><div class="line"></div><div class="line">                                                         <span class="comment"># get the roles</span></div><div class="line"></div><div class="line">                                                         roles = [r.strip() <span class="keyword">for</span> r <span class="keyword">in</span> req.headers.get(<span class="string">'X_ROLE'</span>, <span class="string">''</span>).split(<span class="string">','</span>)]</div><div class="line"></div><div class="line">                                                         <span class="keyword">if</span> <span class="string">'X_TENANT_ID'</span> <span class="keyword">in</span> req.headers:</div><div class="line"></div><div class="line">                                                             <span class="comment"># This is the new header since Keystone went to ID/Name</span></div><div class="line"></div><div class="line">                                                             project_id = req.headers[<span class="string">'X_TENANT_ID'</span>]</div><div class="line"></div><div class="line">                                                         <span class="keyword">else</span>:</div><div class="line"></div><div class="line">                                                             <span class="comment"># This is for legacy compatibility</span></div><div class="line"></div><div class="line">                                                             project_id = req.headers[<span class="string">'X_TENANT'</span>]</div><div class="line"></div><div class="line">                                                         project_name = req.headers.get(<span class="string">'X_TENANT_NAME'</span>)</div><div class="line"></div><div class="line">                                                         req_id = req.environ.get(request_id.ENV_REQUEST_ID)</div><div class="line"></div><div class="line">                                                         <span class="comment"># Get the auth token</span></div><div class="line"></div><div class="line">                                                         auth_token = req.headers.get(<span class="string">'X_AUTH_TOKEN'</span>,</div><div class="line"></div><div class="line">                                                                                      req.headers.get(<span class="string">'X_STORAGE_TOKEN'</span>))</div><div class="line"></div><div class="line">                                                         <span class="comment"># Build a context, including the auth_token...</span></div><div class="line"></div><div class="line">                                                         remote_address = req.remote_addr</div><div class="line"></div><div class="line">    </div><div class="line"></div><div class="line">                                                         service_catalog = <span class="keyword">None</span></div><div class="line"></div><div class="line">                                                         <span class="keyword">if</span> req.headers.get(<span class="string">'X_SERVICE_CATALOG'</span>) <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</div><div class="line"></div><div class="line">                                                             <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                                                                 catalog_header = req.headers.get(<span class="string">'X_SERVICE_CATALOG'</span>)</div><div class="line"></div><div class="line">                                                                 service_catalog = jsonutils.loads(catalog_header)</div><div class="line"></div><div class="line">                                                             <span class="keyword">except</span> ValueError:</div><div class="line"></div><div class="line">                                                                 <span class="keyword">raise</span> webob.exc.HTTPInternalServerError(</div><div class="line"></div><div class="line">                                                                     _(<span class="string">'Invalid service catalog json.'</span>))</div><div class="line"></div><div class="line">                                                         <span class="keyword">if</span> CONF.use_forwarded_for:</div><div class="line"></div><div class="line">                                                             remote_address = req.headers.get(<span class="string">'X-Forwarded-For'</span>, remote_address)</div><div class="line"></div><div class="line">                                                         ctx = context.RequestContext(user_id,</div><div class="line"></div><div class="line">                                                                                      project_id,</div><div class="line"></div><div class="line">                                                                                      project_name=project_name,</div><div class="line"></div><div class="line">                                                                                      roles=roles,</div><div class="line"></div><div class="line">                                                                                      auth_token=auth_token,</div><div class="line"></div><div class="line">                                                                                      remote_address=remote_address,</div><div class="line"></div><div class="line">                                                                                      service_catalog=service_catalog,</div><div class="line"></div><div class="line">                                                                                      request_id=req_id)</div><div class="line"></div><div class="line">                                                         req.environ[<span class="string">'cinder.context'</span>] = ctx</div><div class="line"></div><div class="line">                                                         <span class="keyword">return</span> self.application </div><div class="line"></div><div class="line">                                                 <span class="comment">#@ cinder.api.middleware.auth:CinderKeystoneContext.__call__ 作用是 创建Context 上下文 封装 req 请求</span></div><div class="line"></div><div class="line">                                                 </div><div class="line"></div><div class="line">                                                 <span class="comment">#@ 接着会调用 cinder.api.openstack.wsgi.Resource 类的__call__ 方法</span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@ Resource.__call__ ---> Resource._process_stack ---> Resource.dispatch 调用流程</span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@  def dispatch(self, method, request, action_args):</span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@        """Dispatch a call to the action-specific method."""</span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@       return method(req=request, **action_args)</span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@      method = instancemethod: ></span></div><div class="line"></div><div class="line">                                                 <span class="comment">#@  分析 method 方法则可知 dispatch 会映射到 cinder.api.contrib.quotas.QuotaSetsController.show 方法</span></div><div class="line"></div><div class="line">                    <span class="keyword">except</span> Exception <span class="keyword">as</span> ex:</div><div class="line"></div><div class="line">                         <span class="keyword">return</span> self._error(ex, req)</div><div class="line"></div><div class="line">                 <span class="comment">#@ 分析 会调用cinder.api.middleware.fault:FaultWrapper 作用在 异常处理</span></div><div class="line"></div><div class="line">         <span class="keyword">return</span> self.process_response(response)</div></pre></td></tr></tbody></table></figure></body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2015/06/17/cinder-api/" rel="bookmark">cinder-api</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2015/06/17/cinder-volume/" rel="bookmark">cinder-volume</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/cinder/" rel="tag"># cinder</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2015/06/17/cinder-volume/" rel="next" title="cinder-volume">
+                <i class="fa fa-chevron-left"></i> cinder-volume
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2015/06/17/cinder-api/" rel="prev" title="cinder-api">
+                cinder-api <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Cinder接口到处理函数的流程"><span class="nav-number">1.</span> <span class="nav-text">Cinder接口到处理函数的流程</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

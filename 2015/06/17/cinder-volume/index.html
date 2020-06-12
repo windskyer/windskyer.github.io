@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="cinder-volume服务主进程分析">
+<meta name="keywords" content="cinder">
+<meta property="og:type" content="article">
+<meta property="og:title" content="cinder-volume">
+<meta property="og:url" content="https://www.flftuu.com/2015/06/17/cinder-volume/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="cinder-volume服务主进程分析">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-03-21T10:20:21.743Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="cinder-volume">
+<meta name="twitter:description" content="cinder-volume服务主进程分析">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2015/06/17/cinder-volume/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>cinder-volume | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2015/06/17/cinder-volume/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">cinder-volume
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2015-06-17 13:07:52" itemprop="dateCreated datePublished" datetime="2015-06-17T13:07:52+08:00">2015-06-17</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-03-21 18:20:21" itemprop="dateModified" datetime="2019-03-21T18:20:21+08:00">2019-03-21</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Openstack/" itemprop="url" rel="index"><span itemprop="name">Openstack</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2015/06/17/cinder-volume/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2015/06/17/cinder-volume/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">24k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">22 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><h1 id="cinder-volume服务主进程分析"><a href="#cinder-volume服务主进程分析" class="headerlink" title="cinder-volume服务主进程分析"></a>cinder-volume服务主进程分析</h1><a id="more"></a>
+<figure class="highlight python"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div><div class="line">223</div><div class="line">224</div><div class="line">225</div><div class="line">226</div><div class="line">227</div><div class="line">228</div><div class="line">229</div><div class="line">230</div><div class="line">231</div><div class="line">232</div><div class="line">233</div><div class="line">234</div><div class="line">235</div><div class="line">236</div><div class="line">237</div><div class="line">238</div><div class="line">239</div><div class="line">240</div><div class="line">241</div><div class="line">242</div><div class="line">243</div><div class="line">244</div><div class="line">245</div><div class="line">246</div><div class="line">247</div><div class="line">248</div><div class="line">249</div><div class="line">250</div><div class="line">251</div><div class="line">252</div><div class="line">253</div><div class="line">254</div><div class="line">255</div><div class="line">256</div><div class="line">257</div><div class="line">258</div><div class="line">259</div><div class="line">260</div><div class="line">261</div><div class="line">262</div><div class="line">263</div><div class="line">264</div><div class="line">265</div><div class="line">266</div><div class="line">267</div><div class="line">268</div><div class="line">269</div><div class="line">270</div><div class="line">271</div><div class="line">272</div><div class="line">273</div><div class="line">274</div><div class="line">275</div><div class="line">276</div><div class="line">277</div><div class="line">278</div><div class="line">279</div><div class="line">280</div><div class="line">281</div><div class="line">282</div><div class="line">283</div><div class="line">284</div><div class="line">285</div><div class="line">286</div><div class="line">287</div><div class="line">288</div><div class="line">289</div><div class="line">290</div><div class="line">291</div><div class="line">292</div><div class="line">293</div><div class="line">294</div><div class="line">295</div><div class="line">296</div><div class="line">297</div><div class="line">298</div><div class="line">299</div><div class="line">300</div><div class="line">301</div><div class="line">302</div><div class="line">303</div><div class="line">304</div><div class="line">305</div><div class="line">306</div><div class="line">307</div><div class="line">308</div><div class="line">309</div><div class="line">310</div><div class="line">311</div><div class="line">312</div><div class="line">313</div><div class="line">314</div><div class="line">315</div><div class="line">316</div><div class="line">317</div><div class="line">318</div><div class="line">319</div><div class="line">320</div><div class="line">321</div><div class="line">322</div><div class="line">323</div><div class="line">324</div><div class="line">325</div><div class="line">326</div><div class="line">327</div><div class="line">328</div><div class="line">329</div><div class="line">330</div><div class="line">331</div><div class="line">332</div><div class="line">333</div><div class="line">334</div><div class="line">335</div><div class="line">336</div><div class="line">337</div><div class="line">338</div><div class="line">339</div><div class="line">340</div><div class="line">341</div><div class="line">342</div><div class="line">343</div><div class="line">344</div><div class="line">345</div><div class="line">346</div><div class="line">347</div><div class="line">348</div><div class="line">349</div><div class="line">350</div><div class="line">351</div><div class="line">352</div><div class="line">353</div><div class="line">354</div><div class="line">355</div><div class="line">356</div><div class="line">357</div><div class="line">358</div><div class="line">359</div><div class="line">360</div><div class="line">361</div><div class="line">362</div><div class="line">363</div><div class="line">364</div><div class="line">365</div><div class="line">366</div><div class="line">367</div><div class="line">368</div><div class="line">369</div><div class="line">370</div><div class="line">371</div><div class="line">372</div><div class="line">373</div><div class="line">374</div><div class="line">375</div><div class="line">376</div><div class="line">377</div><div class="line">378</div><div class="line">379</div><div class="line">380</div><div class="line">381</div><div class="line">382</div><div class="line">383</div><div class="line">384</div><div class="line">385</div><div class="line">386</div><div class="line">387</div><div class="line">388</div><div class="line">389</div><div class="line">390</div><div class="line">391</div><div class="line">392</div><div class="line">393</div><div class="line">394</div><div class="line">395</div><div class="line">396</div><div class="line">397</div><div class="line">398</div><div class="line">399</div><div class="line">400</div><div class="line">401</div><div class="line">402</div><div class="line">403</div><div class="line">404</div><div class="line">405</div><div class="line">406</div><div class="line">407</div><div class="line">408</div><div class="line">409</div><div class="line">410</div><div class="line">411</div><div class="line">412</div><div class="line">413</div><div class="line">414</div><div class="line">415</div><div class="line">416</div><div class="line">417</div><div class="line">418</div><div class="line">419</div><div class="line">420</div><div class="line">421</div><div class="line">422</div><div class="line">423</div><div class="line">424</div><div class="line">425</div><div class="line">426</div><div class="line">427</div><div class="line">428</div><div class="line">429</div><div class="line">430</div><div class="line">431</div><div class="line">432</div><div class="line">433</div><div class="line">434</div><div class="line">435</div><div class="line">436</div><div class="line">437</div><div class="line">438</div><div class="line">439</div><div class="line">440</div><div class="line">441</div><div class="line">442</div><div class="line">443</div><div class="line">444</div><div class="line">445</div><div class="line">446</div><div class="line">447</div><div class="line">448</div><div class="line">449</div><div class="line">450</div><div class="line">451</div><div class="line">452</div><div class="line">453</div><div class="line">454</div><div class="line">455</div><div class="line">456</div><div class="line">457</div><div class="line">458</div><div class="line">459</div><div class="line">460</div><div class="line">461</div><div class="line">462</div><div class="line">463</div><div class="line">464</div><div class="line">465</div><div class="line">466</div><div class="line">467</div><div class="line">468</div><div class="line">469</div><div class="line">470</div><div class="line">471</div><div class="line">472</div><div class="line">473</div><div class="line">474</div><div class="line">475</div><div class="line">476</div><div class="line">477</div><div class="line">478</div><div class="line">479</div><div class="line">480</div><div class="line">481</div><div class="line">482</div><div class="line">483</div><div class="line">484</div><div class="line">485</div><div class="line">486</div><div class="line">487</div><div class="line">488</div><div class="line">489</div><div class="line">490</div><div class="line">491</div><div class="line">492</div><div class="line">493</div><div class="line">494</div><div class="line">495</div><div class="line">496</div><div class="line">497</div><div class="line">498</div><div class="line">499</div><div class="line">500</div><div class="line">501</div><div class="line">502</div><div class="line">503</div><div class="line">504</div><div class="line">505</div><div class="line">506</div><div class="line">507</div><div class="line">508</div><div class="line">509</div><div class="line">510</div><div class="line">511</div><div class="line">512</div><div class="line">513</div><div class="line">514</div><div class="line">515</div><div class="line">516</div><div class="line">517</div><div class="line">518</div><div class="line">519</div><div class="line">520</div><div class="line">521</div><div class="line">522</div><div class="line">523</div><div class="line">524</div><div class="line">525</div><div class="line">526</div><div class="line">527</div><div class="line">528</div><div class="line">529</div><div class="line">530</div><div class="line">531</div><div class="line">532</div><div class="line">533</div><div class="line">534</div><div class="line">535</div><div class="line">536</div><div class="line">537</div><div class="line">538</div><div class="line">539</div><div class="line">540</div><div class="line">541</div><div class="line">542</div><div class="line">543</div><div class="line">544</div><div class="line">545</div><div class="line">546</div><div class="line">547</div><div class="line">548</div><div class="line">549</div><div class="line">550</div><div class="line">551</div><div class="line">552</div><div class="line">553</div><div class="line">554</div><div class="line">555</div><div class="line">556</div><div class="line">557</div><div class="line">558</div><div class="line">559</div><div class="line">560</div><div class="line">561</div><div class="line">562</div><div class="line">563</div><div class="line">564</div><div class="line">565</div><div class="line">566</div><div class="line">567</div><div class="line">568</div><div class="line">569</div><div class="line">570</div><div class="line">571</div><div class="line">572</div><div class="line">573</div><div class="line">574</div><div class="line">575</div><div class="line">576</div><div class="line">577</div><div class="line">578</div><div class="line">579</div><div class="line">580</div><div class="line">581</div><div class="line">582</div><div class="line">583</div><div class="line">584</div><div class="line">585</div><div class="line">586</div><div class="line">587</div><div class="line">588</div><div class="line">589</div><div class="line">590</div><div class="line">591</div><div class="line">592</div><div class="line">593</div><div class="line">594</div><div class="line">595</div><div class="line">596</div><div class="line">597</div><div class="line">598</div><div class="line">599</div><div class="line">600</div><div class="line">601</div><div class="line">602</div><div class="line">603</div><div class="line">604</div><div class="line">605</div><div class="line">606</div><div class="line">607</div><div class="line">608</div><div class="line">609</div><div class="line">610</div><div class="line">611</div><div class="line">612</div><div class="line">613</div><div class="line">614</div><div class="line">615</div><div class="line">616</div><div class="line">617</div><div class="line">618</div><div class="line">619</div><div class="line">620</div><div class="line">621</div><div class="line">622</div><div class="line">623</div><div class="line">624</div><div class="line">625</div><div class="line">626</div><div class="line">627</div><div class="line">628</div><div class="line">629</div><div class="line">630</div><div class="line">631</div><div class="line">632</div><div class="line">633</div><div class="line">634</div><div class="line">635</div><div class="line">636</div><div class="line">637</div><div class="line">638</div><div class="line">639</div><div class="line">640</div><div class="line">641</div><div class="line">642</div><div class="line">643</div><div class="line">644</div><div class="line">645</div><div class="line">646</div><div class="line">647</div><div class="line">648</div><div class="line">649</div><div class="line">650</div><div class="line">651</div><div class="line">652</div><div class="line">653</div><div class="line">654</div><div class="line">655</div><div class="line">656</div><div class="line">657</div><div class="line">658</div><div class="line">659</div><div class="line">660</div><div class="line">661</div><div class="line">662</div><div class="line">663</div><div class="line">664</div><div class="line">665</div><div class="line">666</div><div class="line">667</div><div class="line">668</div><div class="line">669</div><div class="line">670</div><div class="line">671</div><div class="line">672</div><div class="line">673</div><div class="line">674</div><div class="line">675</div><div class="line">676</div><div class="line">677</div><div class="line">678</div><div class="line">679</div><div class="line">680</div><div class="line">681</div><div class="line">682</div><div class="line">683</div><div class="line">684</div><div class="line">685</div><div class="line">686</div><div class="line">687</div><div class="line">688</div><div class="line">689</div><div class="line">690</div><div class="line">691</div><div class="line">692</div><div class="line">693</div><div class="line">694</div><div class="line">695</div><div class="line">696</div><div class="line">697</div><div class="line">698</div><div class="line">699</div><div class="line">700</div><div class="line">701</div><div class="line">702</div><div class="line">703</div><div class="line">704</div><div class="line">705</div><div class="line">706</div><div class="line">707</div><div class="line">708</div><div class="line">709</div><div class="line">710</div><div class="line">711</div><div class="line">712</div><div class="line">713</div><div class="line">714</div><div class="line">715</div><div class="line">716</div><div class="line">717</div><div class="line">718</div><div class="line">719</div><div class="line">720</div><div class="line">721</div><div class="line">722</div><div class="line">723</div><div class="line">724</div><div class="line">725</div><div class="line">726</div><div class="line">727</div><div class="line">728</div><div class="line">729</div><div class="line">730</div><div class="line">731</div><div class="line">732</div><div class="line">733</div><div class="line">734</div><div class="line">735</div><div class="line">736</div><div class="line">737</div><div class="line">738</div><div class="line">739</div><div class="line">740</div><div class="line">741</div><div class="line">742</div><div class="line">743</div><div class="line">744</div><div class="line">745</div><div class="line">746</div><div class="line">747</div><div class="line">748</div><div class="line">749</div><div class="line">750</div><div class="line">751</div><div class="line">752</div><div class="line">753</div><div class="line">754</div><div class="line">755</div><div class="line">756</div><div class="line">757</div><div class="line">758</div><div class="line">759</div><div class="line">760</div><div class="line">761</div><div class="line">762</div><div class="line">763</div><div class="line">764</div><div class="line">765</div><div class="line">766</div><div class="line">767</div><div class="line">768</div><div class="line">769</div><div class="line">770</div><div class="line">771</div><div class="line">772</div><div class="line">773</div><div class="line">774</div><div class="line">775</div><div class="line">776</div><div class="line">777</div><div class="line">778</div><div class="line">779</div><div class="line">780</div><div class="line">781</div><div class="line">782</div><div class="line">783</div><div class="line">784</div><div class="line">785</div><div class="line">786</div><div class="line">787</div><div class="line">788</div><div class="line">789</div><div class="line">790</div><div class="line">791</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#!/usr/bin/env python</span></div><div class="line"></div><div class="line"><span class="comment">#author zwei</span></div><div class="line"></div><div class="line"><span class="comment">#@ cinder-volume 为例子</span></div><div class="line"></div><div class="line"><span class="comment">######## cinder-volume 服务启动的 流程  ##############</span></div><div class="line"></div><div class="line">    CONF(sys.argv[<span class="number">1</span>:], project=<span class="string">'cinder'</span>,</div><div class="line"></div><div class="line">                  version=version.version_string())</div><div class="line"></div><div class="line">    <span class="comment">#@ 初始化 /etc/cinder/cinder.conf 配置文件中 的选项值 如果配置文件中没有则 以 代码中 注册的 值为默认值</span></div><div class="line"></div><div class="line">    logging.setup(<span class="string">"cinder"</span>)</div><div class="line"></div><div class="line">    <span class="comment">#@ 设置 日志文件的目录 和 和 日志处理的 方式 和 日志 输出的 格式 </span></div><div class="line"></div><div class="line">    utils.monkey_patch()</div><div class="line"></div><div class="line">    <span class="comment">#@ 动态导入 模块</span></div><div class="line"></div><div class="line">        CONF.monkey_patch:</div><div class="line"></div><div class="line">        <span class="comment">#@ 根据 配置文件 中的  monkey_patch 的值 True 和 False</span></div><div class="line"></div><div class="line">        CONF.monkey_patch_modules</div><div class="line"></div><div class="line">        <span class="comment">#@ 如果 CONF.monkey_patch 为True 则 会 导入 CONF.monkey_patch_modules 中的 各种 类  使用 __import__(module)</span></div><div class="line"></div><div class="line">    launcher = service.get_launcher()</div><div class="line"></div><div class="line">    <span class="comment">#@ 使用 cindr/service 中的 get_launcher()</span></div><div class="line"></div><div class="line">    <span class="keyword">if</span> os.name == <span class="string">'nt'</span>:</div><div class="line"></div><div class="line">        <span class="comment">#@ 判断 操作系统类型 nt 表示 windows</span></div><div class="line"></div><div class="line">        <span class="keyword">return</span> Launcher()</div><div class="line"></div><div class="line">            <span class="comment">#@class Launcher(object):</span></div><div class="line"></div><div class="line">            <span class="comment">#@  def __init__(self):</span></div><div class="line"></div><div class="line">            <span class="comment">#@  self.launch_service = serve</span></div><div class="line"></div><div class="line">            <span class="comment">#@  self.wait = wait</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 表示初始话一个新的类  没有 任何 功能方法 所有 cinder-volume 不能在 windows 上运行 其他服务 类似</span></div><div class="line"></div><div class="line">    <span class="keyword">else</span>:</div><div class="line"></div><div class="line">        </div><div class="line"></div><div class="line">        <span class="keyword">return</span> process_launcher()</div><div class="line"></div><div class="line">        <span class="comment">#@  return service.ProcessLauncher()</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 会调用 cinder/openstack/common/service.py 中的ProcessLauncher 类  初始化 该 类</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 初始化 process_launcher 类</span></div><div class="line"></div><div class="line">        self.children = {}</div><div class="line"></div><div class="line">        self.sigcaught = <span class="keyword">None</span></div><div class="line"></div><div class="line">        self.running = <span class="keyword">True</span></div><div class="line"></div><div class="line">        self.wait_interval = wait_interval = <span class="number">0.01</span> <span class="comment">#@ 默认值</span></div><div class="line"></div><div class="line">        rfd, self.writepipe = os.pipe()</div><div class="line"></div><div class="line">        <span class="comment">#@ 返回一个 rfd read 文件描述符 self.writepipe write 文件描述符</span></div><div class="line"></div><div class="line">        self.readpipe = eventlet.greenio.GreenPipe(rfd, <span class="string">'r'</span>)</div><div class="line"></div><div class="line">        self.handle_signal()</div><div class="line"></div><div class="line">            <span class="comment">#@ def handle_signal(self):</span></div><div class="line"></div><div class="line">            <span class="comment">#@      _set_signals_handler(self._handle_signal)</span></div><div class="line"></div><div class="line">            <span class="comment">#@ </span></div><div class="line"></div><div class="line">                <span class="function"><span class="keyword">def</span> <span class="title">_set_signals_handler</span><span class="params">(handler)</span>:</span></div><div class="line"></div><div class="line">                    signal.signal(signal.SIGTERM, handler)</div><div class="line"></div><div class="line">                    <span class="comment">#@ 表示 当程序 收到 signal.SIGTERM 信号的时候 会调用 _handle_signal 函数</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ signal.SIGTERM  参考 kill -l  和 man 7 signal 查看详细信息</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ SIGTERM      15       Term    Termination signal</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ 程序结束(terminate)信号, 与SIGKILL不同的是该信号可以被阻塞和处理。通常用来要求程序自己正常退出，shell命令kill缺省产生这个信号。如果进程终止不了，我们才会尝试SIGKILL</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ 当程序自己 正常结束所 收到的信号</span></div><div class="line"></div><div class="line">                    signal.signal(signal.SIGINT, handler)</div><div class="line"></div><div class="line">                    <span class="comment">#@ 当后台作业要从用户终端读数据时, 该作业中的所有进程会收到SIGTTIN信号. 缺省时这些进程会停止执行. </span></div><div class="line"></div><div class="line">                    <span class="keyword">if</span> _sighup_supported():</div><div class="line"></div><div class="line">                        <span class="comment">#@ return hasattr(signal, 'SIGHUP')</span></div><div class="line"></div><div class="line">                        <span class="comment">#@ 查看 signal 是否 有 SIGHUP 属性</span></div><div class="line"></div><div class="line">                        signal.signal(signal.SIGHUP, handler)</div><div class="line"></div><div class="line">                        <span class="comment">#@ 本信号在用户终端连接(正常或非正常)结束时发出, 通常是在终端的控制进程结束时, 通知同一session内的各个作业, 这时它们与控制终端不再关联。</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ http://blog.chinaunix.net/uid-26111972-id-3794962.html 参考文档</span></div><div class="line"></div><div class="line">            <span class="comment">#@ 会调用</span></div><div class="line"></div><div class="line">            <span class="function"><span class="keyword">def</span> <span class="title">_handle_signal</span><span class="params">(self, signo, frame)</span>:</span></div><div class="line"></div><div class="line">                self.sigcaught = signo</div><div class="line"></div><div class="line">                self.running = <span class="keyword">False</span></div><div class="line"></div><div class="line">    <span class="keyword">for</span> backend <span class="keyword">in</span> CONF.enabled_backends:</div><div class="line"></div><div class="line">        <span class="comment">#@获取 配置文件中的 enabled_backends 选项 eg ['vg1','vg2','nfs1','nfs2']</span></div><div class="line"></div><div class="line">        host = <span class="string">"%s@%s"</span> % (CONF.host, backend)</div><div class="line"></div><div class="line">        <span class="comment">#eg: ivm140@nfs1</span></div><div class="line"></div><div class="line">        server = service.Service.create(host=host,</div><div class="line"></div><div class="line">                                        service_name=backend,</div><div class="line"></div><div class="line">                                        binary=<span class="string">'cinder-volume'</span>)</div><div class="line"></div><div class="line">        <span class="comment">#@ 调用cinder/service.py:service 类的 create 类方法:</span></div><div class="line"></div><div class="line">               <span class="function"><span class="keyword">def</span> <span class="title">create</span><span class="params">(cls, host=None, binary=None, topic=None, manager=None,</span></span></div><div class="line"><span class="function"><span class="params"></span></span></div><div class="line"><span class="function"><span class="params">               report_interval=None, periodic_interval=None,</span></span></div><div class="line"><span class="function"><span class="params"></span></span></div><div class="line"><span class="function"><span class="params">               periodic_fuzzy_delay=None, service_name=None)</span>:</span></div><div class="line"></div><div class="line">                </div><div class="line"></div><div class="line">                     <span class="keyword">if</span> <span class="keyword">not</span> host:</div><div class="line"></div><div class="line">                        host = CONF.host </div><div class="line"></div><div class="line">                        <span class="comment">#@ 在 不使用enabled_backends 选项时候会去调用 配置文件中的  host 选项 默认值 是eg default=socket.gethostname() 当前系统的主机名称 在 cinder/common/config.py 144 行配置 注册</span></div><div class="line"></div><div class="line">                     binary = os.path.basename(inspect.stack()[<span class="number">-1</span>][<span class="number">1</span>])</div><div class="line"></div><div class="line">                    <span class="comment">#@ 获取当前执行的脚本名称（cinder-volume）</span></div><div class="line"></div><div class="line">                    subtopic = topic.rpartition(<span class="string">'cinder-'</span>)[<span class="number">2</span>]</div><div class="line"></div><div class="line">                    <span class="comment">#@ 将字符串转换为 元组 ('','cinder-','volume')</span></div><div class="line"></div><div class="line">                    manager = CONF.get(<span class="string">'%s_manager'</span> % subtopic, <span class="keyword">None</span>)</div><div class="line"></div><div class="line">                    <span class="comment">#@ 获取 卷的 管理器 的 类 volume_manager = cinder.volume.manager.VolumeManager</span></div><div class="line"></div><div class="line">                    report_interval = CONF.report_interval</div><div class="line"></div><div class="line">                    <span class="comment">#@ 报告 cinder-volume 服务的状态信息</span></div><div class="line"></div><div class="line">                    periodic_interval = CONF.periodic_interval</div><div class="line"></div><div class="line">                    periodic_fuzzy_delay = CONF.periodic_fuzzy_delay</div><div class="line"></div><div class="line">                    service_obj = cls(host, binary, topic, manager,</div><div class="line"></div><div class="line">                                                                report_interval=report_interval,</div><div class="line"></div><div class="line">                                                                periodic_interval=periodic_interval,</div><div class="line"></div><div class="line">                                                                periodic_fuzzy_delay=periodic_fuzzy_delay,</div><div class="line"></div><div class="line">                                                                service_name=service_name)</div><div class="line"></div><div class="line">                    <span class="comment">#@ 初始化 cinder/service/Service 类 </span></div><div class="line"></div><div class="line">                    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, host, binary, topic, manager, report_interval=None,</span></span></div><div class="line"><span class="function"><span class="params"></span></span></div><div class="line"><span class="function"><span class="params">                                                  periodic_interval=None, periodic_fuzzy_delay=None,</span></span></div><div class="line"><span class="function"><span class="params"></span></span></div><div class="line"><span class="function"><span class="params">                                                  service_name=None, *args, **kwargs)</span>:</span></div><div class="line"></div><div class="line">                                super(Service, self).__init__()</div><div class="line"></div><div class="line">                                <span class="comment">#@ 初始化 父类</span></div><div class="line"></div><div class="line">                                <span class="comment">#@ </span></div><div class="line"></div><div class="line">                                    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, threads=<span class="number">1000</span>)</span>:</span></div><div class="line"></div><div class="line">                                        self.tg = threadgroup.ThreadGroup(threads)</div><div class="line"></div><div class="line">                                        <span class="comment">#@ 设置协程 池的大小 初始化ThreadGroup 类 </span></div><div class="line"></div><div class="line">                                        <span class="comment">#@ cinder/openstack/common/threadgroup.py:ThreadGroup</span></div><div class="line"></div><div class="line">                                        <span class="comment">#@ </span></div><div class="line"></div><div class="line">                                             <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, thread_pool_size=<span class="number">10</span>)</span>:</span></div><div class="line"></div><div class="line">                                                self.pool = greenpool.GreenPool(thread_pool_size)</div><div class="line"></div><div class="line">                                                <span class="comment">#@ 初始化 greenpool.GreenPool(10) 协程池</span></div><div class="line"></div><div class="line">                                                self.threads = []</div><div class="line"></div><div class="line">                                                self.timers = []</div><div class="line"></div><div class="line">                                        <span class="comment"># signal that the service is done shutting itself down:</span></div><div class="line"></div><div class="line">                                        self._done = threading.Event()</div><div class="line"></div><div class="line">                                        <span class="comment">#@ 初始化 threading 模块中的 Event 类</span></div><div class="line"></div><div class="line">                                 <span class="keyword">if</span> <span class="keyword">not</span> rpc.initialized():</div><div class="line"></div><div class="line">                                        <span class="comment">#@ rpc.initialized() 返回值 false</span></div><div class="line"></div><div class="line">                                     rpc.init(CONF)</div><div class="line"></div><div class="line">                                     </div><div class="line"></div><div class="line">                                     <span class="comment">#@ rpc 初始化</span></div><div class="line"></div><div class="line">                                         <span class="function"><span class="keyword">def</span> <span class="title">init</span><span class="params">(conf)</span>:</span></div><div class="line"></div><div class="line">                                            <span class="keyword">global</span> TRANSPORT, NOTIFIER</div><div class="line"></div><div class="line">                                            exmods = get_allowed_exmods()</div><div class="line"></div><div class="line">                                            TRANSPORT = messaging.get_transport(conf,</div><div class="line"></div><div class="line">                                                                                allowed_remote_exmods=exmods,</div><div class="line"></div><div class="line">                                                                                aliases=TRANSPORT_ALIASES)</div><div class="line"></div><div class="line">                                            <span class="comment">#@ 会加载 oslo.messaging-1.4.1.dist-info/entry_points.txt 文件中的 oslo.messaging.drivers</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 打印的日志</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 服务启动时候 最开始打印的日志</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 2015-06-08 23:05:02.697 27346 DEBUG stevedore.extension [-] </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ found extension EntryPoint.parse('qpid = oslo.messaging._drivers.impl_qpid:QpidDriver') </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ _load_plugins /usr/lib/python2.6/site-packages/stevedore/extension.py:157</span></div><div class="line"></div><div class="line">                                            serializer = RequestContextSerializer(JsonPayloadSerializer())</div><div class="line"></div><div class="line">                                            NOTIFIER = messaging.Notifier(TRANSPORT, serializer=serializer)</div><div class="line"></div><div class="line">                                            <span class="comment">#@ 此段中 会注册 notification_driver 和 notification_topics 两个选项</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 使用 notification_driver 选项在 oslo/messaging/notifly/notifier:Notifier,__init__ 125 line</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 使用 notification_topics 选项在 oslo/messaging/notifly/notifier:Notifier,__init__ 128 line</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 调用以下方法</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@       self._driver_mgr = named.NamedExtensionManager(</span></div><div class="line"></div><div class="line">                                                                        <span class="string">'oslo.messaging.notify.drivers'</span>,</div><div class="line"></div><div class="line">                                                                        names=self._driver_names,</div><div class="line"></div><div class="line">                                                                        invoke_on_load=<span class="keyword">True</span>,</div><div class="line"></div><div class="line">                                                                        invoke_args=[transport.conf],</div><div class="line"></div><div class="line">                                                                        invoke_kwds={</div><div class="line"></div><div class="line">                                                                        <span class="string">'topics'</span>: self._topics,</div><div class="line"></div><div class="line">                                                                        <span class="string">'transport'</span>: self.transport,</div><div class="line"></div><div class="line">                                                                        }</div><div class="line"></div><div class="line">                                            <span class="comment">#@ 最后调用 pkg_resources.iter_entry_points(namespace) namespace='oslo.messaging.notify.drivers' #可以知道 pkg_resources 会查看 所有的entry_points.txt文件 查找 oslo.messaging.notify.drivers</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 打印的日志</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 服务启动时候 第二部分打印的日志</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 会加载 cinder.egg-info/entry_points.txt 文件中的 oslo.messaging.notify.drivers </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 2015-06-08 23:34:38.060 27346 DEBUG stevedore.extension [-] </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ found extension EntryPoint.parse('cinder.openstack.common.notifier.no_op_notifier = oslo.messaging.notify._impl_noop:NoOpDriver') </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ _load_plugins /usr/lib/python2.6/site-packages/stevedore/extension.py:157</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 会加载 oslo.messaging-1.4.1.dist-info/entry_points.txt 文件中的 oslo.messaging.notify.drivers</span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ 2015-06-08 23:38:28.369 27346 DEBUG stevedore.extension [-] </span></div><div class="line"></div><div class="line">                                            <span class="comment">#@ found extension EntryPoint.parse('log = oslo.messaging.notify._impl_log:LogDriver') _load_plugins /usr/lib/python2.6/site-packages/stevedore/extension.py:157</span></div><div class="line"></div><div class="line">                                self.host = host</div><div class="line"></div><div class="line">                                <span class="comment">#@str: cinder.flftuu.com@vg1</span></div><div class="line"></div><div class="line">                                self.binary = binary</div><div class="line"></div><div class="line">                                <span class="comment">#@ str: cinder-volume</span></div><div class="line"></div><div class="line">                                self.topic = topic</div><div class="line"></div><div class="line">                                <span class="comment">#@ str: cinder-volume</span></div><div class="line"></div><div class="line">                                self.manager_class_name = manager</div><div class="line"></div><div class="line">                                <span class="comment">#@ str: cinder.volume.manager.VolumeManager</span></div><div class="line"></div><div class="line">                                manager_class = importutils.import_class(self.manager_class_name)</div><div class="line"></div><div class="line">                                <span class="comment">#@ _PeriodicTasksMeta:</span></div><div class="line"></div><div class="line">                                self.manager = manager_class(host=self.host,</div><div class="line"></div><div class="line">                                     service_name=service_name,</div><div class="line"></div><div class="line">                                     *args, **kwargs)</div><div class="line"></div><div class="line">                                <span class="comment">#@ 初始化 cinder.volume.manager.VolumeManager 类</span></div><div class="line"></div><div class="line">                                self.report_interval = report_interval</div><div class="line"></div><div class="line">                                <span class="comment">#@ int: 10  10s 跟新数据库状态</span></div><div class="line"></div><div class="line">                                self.periodic_interval = periodic_interval</div><div class="line"></div><div class="line">                                <span class="comment">#@ int: 60  60s 发送消息60s 一次 到 rabbitmq</span></div><div class="line"></div><div class="line">                                self.periodic_fuzzy_delay = periodic_fuzzy_delay</div><div class="line"></div><div class="line">                                <span class="comment">#@ int: 60</span></div><div class="line"></div><div class="line">                                self.basic_config_check()</div><div class="line"></div><div class="line">                                <span class="comment">#@  if CONF.service_down_time <= self.report_interval:</span></div><div class="line"></div><div class="line">                                <span class="comment">#@ 检测 判断服务down 的时间差 和服务更新时间相比较</span></div><div class="line"></div><div class="line">                                <span class="comment">#@ down 的时间差 一定要大于 服务更新的时间差 </span></div><div class="line"></div><div class="line">                                self.saved_args, self.saved_kwargs = args, kwargs</div><div class="line"></div><div class="line">                                self.timers = []</div><div class="line"></div><div class="line">            launcher.launch_service(server)</div><div class="line"></div><div class="line">            <span class="comment">#@ 调用 cinder/openstack/common/service.py:process_launcher 类</span></div><div class="line"></div><div class="line">            <span class="function"><span class="keyword">def</span> <span class="title">launch_service</span><span class="params">(self, service, workers=<span class="number">1</span>)</span>:</span></div><div class="line"></div><div class="line">                <span class="comment">#@ workers=1 表示一个默认的cinder-volume 服务只有一个子进程</span></div><div class="line"></div><div class="line">                wrap = ServiceWrapper(service, workers)</div><div class="line"></div><div class="line">                    <span class="comment">#@初始化  ServiceWrapper </span></div><div class="line"></div><div class="line">                    <span class="comment">#@  </span></div><div class="line"></div><div class="line">                    <span class="class"><span class="keyword">class</span> <span class="title">ServiceWrapper</span><span class="params">(object)</span>:</span></div><div class="line"></div><div class="line">                        <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, service, workers)</span>:</span></div><div class="line"></div><div class="line">                            self.service = service</div><div class="line"></div><div class="line">                            self.workers = workers</div><div class="line"></div><div class="line">                            self.children = set()</div><div class="line"></div><div class="line">                            self.forktimes = []</div><div class="line"></div><div class="line">                LOG.info(_(<span class="string">'Starting %d workers'</span>), wrap.workers)</div><div class="line"></div><div class="line">                <span class="comment">#@ 打印第 三部分日志</span></div><div class="line"></div><div class="line">                <span class="comment">#@ 2015-06-09 01:26:58.982 28852 INFO cinder.openstack.common.service [-] Starting 1 workers</span></div><div class="line"></div><div class="line">                <span class="keyword">while</span> self.running <span class="keyword">and</span> len(wrap.children) < wrap.workers:</div><div class="line"></div><div class="line">                    <span class="comment">#@ self.running = True , len(wrap.children) = 0 < wrap.workers = 1 </span></div><div class="line"></div><div class="line">                     self._start_child(wrap)</div><div class="line"></div><div class="line">                        <span class="keyword">if</span> len(wrap.forktimes) > wrap.workers:</div><div class="line"></div><div class="line">                            <span class="comment">#@ len(wrap.forktimes) = 0 > wrap.workers = 1</span></div><div class="line"></div><div class="line">                            <span class="keyword">if</span> time.time() - wrap.forktimes[<span class="number">0</span>] < wrap.workers:</div><div class="line"></div><div class="line">                                <span class="comment">#@ 当前时间 与 创建子进程时间 做对比 要大于 1s</span></div><div class="line"></div><div class="line">                                LOG.info(_(<span class="string">'Forking too fast, sleeping'</span>))</div><div class="line"></div><div class="line">                                time.sleep(<span class="number">1</span>)</div><div class="line"></div><div class="line">                            wrap.forktimes.pop(<span class="number">0</span>)           </div><div class="line"></div><div class="line">                        wrap.forktimes.append(time.time())</div><div class="line"></div><div class="line">                        <span class="comment">#@ 设置创建子进程的时间</span></div><div class="line"></div><div class="line">                        pid = os.fork()</div><div class="line"></div><div class="line">                        <span class="comment">#@ 创建子进程</span></div><div class="line"></div><div class="line">                        <span class="keyword">if</span> pid == <span class="number">0</span>:</div><div class="line"></div><div class="line">                        <span class="comment">#@ pid == 0 表示 以下代码在 子进程中运行</span></div><div class="line"></div><div class="line">                            launcher = self._child_process(wrap.service)</div><div class="line"></div><div class="line">                            <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line"></div><div class="line">                                self._child_process_handle_signal()</div><div class="line"></div><div class="line">                                status, signo = self._child_wait_for_exit_or_signal(launcher)</div><div class="line"></div><div class="line">                                <span class="keyword">if</span> <span class="keyword">not</span> _is_sighup_and_daemon(signo):</div><div class="line"></div><div class="line">                                    <span class="keyword">break</span></div><div class="line"></div><div class="line">                                launcher.restart()</div><div class="line"></div><div class="line">                            os._exit(status)</div><div class="line"></div><div class="line">                        LOG.info(_(<span class="string">'Started child %d'</span>), pid)</div><div class="line"></div><div class="line">                        <span class="comment">#@ 在父进程中输出 第四部分日志 </span></div><div class="line"></div><div class="line">                        <span class="comment">#@ 2015-06-09 01:47:10.358 31196 INFO cinder.openstack.common.service [-] Started child 31218</span></div><div class="line"></div><div class="line">                        wrap.children.add(pid)</div><div class="line"></div><div class="line">                        <span class="comment">#@ 保留 子进程的 pid </span></div><div class="line"></div><div class="line">                        self.children[pid] = wrap</div><div class="line"></div><div class="line">                        <span class="comment">#@ 设置 子进程 对应的 ServiceWrapper 的实例</span></div><div class="line"></div><div class="line">                        <span class="keyword">return</span> pid</div><div class="line"></div><div class="line">    <span class="keyword">else</span>:</div><div class="line"></div><div class="line">        server = service.Service.create(binary=<span class="string">'cinder-volume'</span>)</div><div class="line"></div><div class="line">        launcher.launch_service(server)</div><div class="line"></div><div class="line">        <span class="comment">#@ 与以上相同</span></div><div class="line"></div><div class="line">    launcher.wait()</div><div class="line"></div><div class="line">    <span class="comment">#@ 调用 cinder/openstack/common/service.py:process_launcher 类 的 wait() 方法</span></div><div class="line"></div><div class="line">        LOG.debug(_(<span class="string">'Full set of CONF:'</span>))</div><div class="line"></div><div class="line">        <span class="comment">#@ 2015-06-09 01:47:10.360 31196 DEBUG cinder.openstack.common.service [-] Full set of CONF: wait /root/workspace/cinder/cinder/openstack/common/service.py:384</span></div><div class="line"></div><div class="line">        CONF.log_opt_values(LOG, std_logging.DEBUG)</div><div class="line"></div><div class="line">        <span class="comment">#@ 打印主进程的 第五部分日志</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 打印所有的 有关 cinder-volume 服务的 配置文件参数</span></div><div class="line"></div><div class="line">        <span class="comment">#@ </span></div><div class="line"></div><div class="line">        <span class="comment">#@ logger.log(lvl, "*" * 80)</span></div><div class="line"></div><div class="line">        <span class="comment">#@ logger.log(lvl, "Configuration options gathered from:")</span></div><div class="line"></div><div class="line">        <span class="comment">#@ logger.log(lvl, "command line args: %s", self._args)</span></div><div class="line"></div><div class="line">        <span class="comment">#@ logger.log(lvl, "config files: %s", self.config_file)</span></div><div class="line"></div><div class="line">        <span class="comment">#@ logger.log(lvl, "=" * 80)</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 2015-06-09 01:47:10.367 31196 DEBUG cinder.openstack.common.service [-] allowed_direct_url_schemes     = [] log_opt_values /usr/lib/python2.6/site-packages/oslo_config/cfg.py:2184</span></div><div class="line"></div><div class="line">        <span class="comment">#@ 参数的 排列顺序为 a-z 字母列表</span></div><div class="line"></div><div class="line">        <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line"></div><div class="line">            self.handle_signal()</div><div class="line"></div><div class="line">            <span class="comment">#@ 设置 信号量处理 函数</span></div><div class="line"></div><div class="line">            <span class="comment">#@ 同上</span></div><div class="line"></div><div class="line">            self._respawn_children()</div><div class="line"></div><div class="line">            <span class="comment">#@ 切换 eventlet 中的 协程 </span></div><div class="line"></div><div class="line">            <span class="comment">#@    </span></div><div class="line"></div><div class="line">                <span class="keyword">while</span> self.running:</div><div class="line"></div><div class="line">                    wrap = self._wait_child()</div><div class="line"></div><div class="line">                        <span class="function"><span class="keyword">def</span> <span class="title">_wait_child</span><span class="params">(self)</span>:</span></div><div class="line"></div><div class="line">                            <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                                <span class="comment"># Don't block if no child processes have exited</span></div><div class="line"></div><div class="line">                                pid, status = os.waitpid(<span class="number">0</span>, os.WNOHANG)</div><div class="line"></div><div class="line">                                <span class="comment">#@ 获取子进程的 状态信息</span></div><div class="line"></div><div class="line">                                <span class="keyword">if</span> <span class="keyword">not</span> pid:</div><div class="line"></div><div class="line">                                    <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                            <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</div><div class="line"></div><div class="line">                                <span class="keyword">if</span> exc.errno <span class="keyword">not</span> <span class="keyword">in</span> (errno.EINTR, errno.ECHILD):</div><div class="line"></div><div class="line">                                    <span class="keyword">raise</span></div><div class="line"></div><div class="line">                                <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                            <span class="keyword">if</span> os.WIFSIGNALED(status):</div><div class="line"></div><div class="line">                                sig = os.WTERMSIG(status)</div><div class="line"></div><div class="line">                                LOG.info(_(<span class="string">'Child %(pid)d killed by signal %(sig)d'</span>),</div><div class="line"></div><div class="line">                                        dict(pid=pid, sig=sig))</div><div class="line"></div><div class="line">                            <span class="keyword">else</span>:</div><div class="line"></div><div class="line">                                code = os.WEXITSTATUS(status)</div><div class="line"></div><div class="line">                                LOG.info(_(<span class="string">'Child %(pid)s exited with status %(code)d'</span>),</div><div class="line"></div><div class="line">                                        dict(pid=pid, code=code))</div><div class="line"></div><div class="line">                            <span class="keyword">if</span> pid <span class="keyword">not</span> <span class="keyword">in</span> self.children:</div><div class="line"></div><div class="line">                                LOG.warning(_(<span class="string">'pid %d not in child list'</span>), pid)</div><div class="line"></div><div class="line">                                <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                            wrap = self.children.pop(pid)</div><div class="line"></div><div class="line">                            wrap.children.remove(pid)</div><div class="line"></div><div class="line">                            <span class="keyword">return</span> wrap</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> wrap:</div><div class="line"></div><div class="line">                        <span class="comment"># Yield to other threads if no children have exited</span></div><div class="line"></div><div class="line">                        <span class="comment"># Sleep for a short time to avoid excessive CPU usage</span></div><div class="line"></div><div class="line">                        <span class="comment"># (see bug #1095346)</span></div><div class="line"></div><div class="line">                        eventlet.greenthread.sleep(self.wait_interval)</div><div class="line"></div><div class="line">                        <span class="comment">#@ 停止当前的协程， 使其他的协程 继续运行下去 停止的时间为 self.wait_interval 默认为0.01s</span></div><div class="line"></div><div class="line">                        <span class="keyword">continue</span></div><div class="line"></div><div class="line">                    <span class="comment">#@ 如果没有信号量 输入到程序 则会一直循环</span></div><div class="line"></div><div class="line">                    <span class="keyword">while</span> self.running <span class="keyword">and</span> len(wrap.children) < wrap.workers: </div><div class="line"></div><div class="line">                        self._start_child(wrap)</div><div class="line"></div><div class="line">            <span class="comment">#@ 当 键盘发送 ctrl + c 时候 调用self.handle_signal 方法  </span></div><div class="line"></div><div class="line">            <span class="comment">#@ 最终会设置这几个变量</span></div><div class="line"></div><div class="line">            <span class="comment">#@ self.sigcaught = signo</span></div><div class="line"></div><div class="line">            <span class="comment">#@ self.running = False</span></div><div class="line"></div><div class="line">            <span class="comment">#@ 然后调用self._respawn_children()  不做处理</span></div><div class="line"></div><div class="line">            <span class="comment">#@ 会调用以下代码</span></div><div class="line"></div><div class="line">            <span class="keyword">if</span> self.sigcaught:</div><div class="line"></div><div class="line">                signame = _signo_to_signame(self.sigcaught)</div><div class="line"></div><div class="line">                <span class="comment">#@ 获取发送信号量的名称</span></div><div class="line"></div><div class="line">                LOG.info(_(<span class="string">'Caught %s, stopping children'</span>), signame)</div><div class="line"></div><div class="line">                <span class="comment">#@ 主进程的 结束是的 日志打印</span></div><div class="line"></div><div class="line">            <span class="keyword">if</span> <span class="keyword">not</span> _is_sighup_and_daemon(self.sigcaught):</div><div class="line"></div><div class="line">                <span class="comment">#@ 判断是 信号量 是不是 SIGHUB</span></div><div class="line"></div><div class="line">                <span class="keyword">break</span></div><div class="line"></div><div class="line">                <span class="comment">#@ 推出循环</span></div><div class="line"></div><div class="line">            <span class="keyword">for</span> pid <span class="keyword">in</span> self.children:</div><div class="line"></div><div class="line">                os.kill(pid, signal.SIGHUP)</div><div class="line"></div><div class="line">                <span class="comment">#@ 杀掉子进程</span></div><div class="line"></div><div class="line">            self.running = <span class="keyword">True</span></div><div class="line"></div><div class="line">            self.sigcaught = <span class="keyword">None</span></div><div class="line"></div><div class="line">         <span class="keyword">for</span> pid <span class="keyword">in</span> self.children:</div><div class="line"></div><div class="line">            <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                os.kill(pid, signal.SIGTERM)</div><div class="line"></div><div class="line">                <span class="comment">#@ 杀掉子进程</span></div><div class="line"></div><div class="line">            <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</div><div class="line"></div><div class="line">                <span class="keyword">if</span> exc.errno != errno.ESRCH:</div><div class="line"></div><div class="line">                    <span class="keyword">raise</span></div><div class="line"></div><div class="line">        <span class="comment"># Wait for children to die</span></div><div class="line"></div><div class="line">        <span class="keyword">if</span> self.children:</div><div class="line"></div><div class="line">            LOG.info(_(<span class="string">'Waiting on %d children to exit'</span>), len(self.children))</div><div class="line"></div><div class="line">            <span class="comment">#@ 主进程的 结束是的 日志打印</span></div><div class="line"></div><div class="line">            <span class="keyword">while</span> self.children:</div><div class="line"></div><div class="line">                self._wait_child()</div><div class="line"></div><div class="line">                    <span class="keyword">try</span>:</div><div class="line"></div><div class="line">                    <span class="comment"># Don't block if no child processes have exited</span></div><div class="line"></div><div class="line">                        pid, status = os.waitpid(<span class="number">0</span>, os.WNOHANG)</div><div class="line"></div><div class="line">                        <span class="comment">#@ 查看子进程的状态信息</span></div><div class="line"></div><div class="line">                        <span class="keyword">if</span> <span class="keyword">not</span> pid:</div><div class="line"></div><div class="line">                            <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                        <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</div><div class="line"></div><div class="line">                            <span class="keyword">if</span> exc.errno <span class="keyword">not</span> <span class="keyword">in</span> (errno.EINTR, errno.ECHILD):</div><div class="line"></div><div class="line">                                <span class="keyword">raise</span></div><div class="line"></div><div class="line">                            <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                    <span class="keyword">if</span> os.WIFSIGNALED(status):</div><div class="line"></div><div class="line">                        sig = os.WTERMSIG(status)</div><div class="line"></div><div class="line">                        LOG.info(_(<span class="string">'Child %(pid)d killed by signal %(sig)d'</span>),</div><div class="line"></div><div class="line">                                 dict(pid=pid, sig=sig))</div><div class="line"></div><div class="line">                        <span class="comment">#@ 主进程的 结束是的 日志打印</span></div><div class="line"></div><div class="line">                        <span class="comment">#@ 打印子进程pid</span></div><div class="line"></div><div class="line">                    <span class="keyword">else</span>:</div><div class="line"></div><div class="line">                        code = os.WEXITSTATUS(status)</div><div class="line"></div><div class="line">                        LOG.info(_(<span class="string">'Child %(pid)s exited with status %(code)d'</span>),</div><div class="line"></div><div class="line">                                 dict(pid=pid, code=code))</div><div class="line"></div><div class="line">                    <span class="keyword">if</span> pid <span class="keyword">not</span> <span class="keyword">in</span> self.children:</div><div class="line"></div><div class="line">                        LOG.warning(_(<span class="string">'pid %d not in child list'</span>), pid)</div><div class="line"></div><div class="line">                        <span class="keyword">return</span> <span class="keyword">None</span></div><div class="line"></div><div class="line">                    wrap = self.children.pop(pid)</div><div class="line"></div><div class="line">                    wrap.children.remove(pid)</div><div class="line"></div><div class="line">                    <span class="keyword">return</span> wrap</div><div class="line"></div><div class="line">                    <span class="comment">#@ 到此主进程所做的 工作 分析结束</span></div><div class="line"></div><div class="line"><span class="comment">#@------------os.fork() 创建子进程  ， 分析 子进程-----------------------------@#</span></div><div class="line"></div><div class="line">                        <span class="keyword">if</span> pid == <span class="number">0</span>:</div><div class="line"></div><div class="line">                        <span class="comment">#@ pid == 0 表示 以下代码在 子进程中运行</span></div><div class="line"></div><div class="line">                            launcher = self._child_process(wrap.service)</div><div class="line"></div><div class="line">                            <span class="comment">#@</span></div><div class="line"></div><div class="line">                            <span class="comment">#@</span></div><div class="line"></div><div class="line">                                <span class="function"><span class="keyword">def</span> <span class="title">_child_process</span><span class="params">(self, service)</span>:</span></div><div class="line"></div><div class="line">                                    self._child_process_handle_signal()</div><div class="line"></div><div class="line">                                    eventlet.hubs.use_hub()</div><div class="line"></div><div class="line">                                    <span class="comment">#@ 使用 系统的 AIO （异步IO） 使协程 和 线程一样具有异步io调用系统</span></div><div class="line"></div><div class="line">                                    <span class="comment"># Close write to ensure only parent has it open</span></div><div class="line"></div><div class="line">                                    os.close(self.writepipe)</div><div class="line"></div><div class="line">                                    <span class="comment"># Create greenthread to watch for parent to close pipe</span></div><div class="line"></div><div class="line">                                    eventlet.spawn_n(self._pipe_watcher)</div><div class="line"></div><div class="line">                                    <span class="comment">#@ 创建一个协程 来执行 self._pipe_watcher 函数</span></div><div class="line"></div><div class="line">                                    <span class="comment">#@ </span></div><div class="line"></div><div class="line">                                    <span class="comment">#@ </span></div><div class="line"></div><div class="line">                                            <span class="function"><span class="keyword">def</span> <span class="title">_pipe_watcher</span><span class="params">(self)</span>:</span></div><div class="line"></div><div class="line">                                                <span class="comment"># This will block until the write end is closed when the parent</span></div><div class="line"></div><div class="line">                                                <span class="comment"># dies unexpectedly</span></div><div class="line"></div><div class="line">                                                self.readpipe.read()</div><div class="line"></div><div class="line">                                                LOG.info(_(<span class="string">'Parent process has died unexpectedly, exiting'</span>))</div><div class="line"></div><div class="line">                                                sys.exit(<span class="number">1</span>)</div><div class="line"></div><div class="line">                                    <span class="comment"># Reseed random number generator</span></div><div class="line"></div><div class="line">                                    random.seed()</div><div class="line"></div><div class="line">                                    <span class="comment">#@ 设置伪随机种子</span></div><div class="line"></div><div class="line">                                    launcher = Launcher()</div><div class="line"></div><div class="line">                                    <span class="comment">#@ 初始化 Launcher 类</span></div><div class="line"></div><div class="line">                                    <span class="comment">#@ </span></div><div class="line"></div><div class="line">                                    <span class="comment">#@  self.services = Services()</span></div><div class="line"></div><div class="line">                                    <span class="comment">#@  初始化 Services 类</span></div><div class="line"></div><div class="line">                                    <span class="comment">#@       def __init__(self):</span></div><div class="line"></div><div class="line">                                                self.services = []</div><div class="line"></div><div class="line">                                                self.tg = threadgroup.ThreadGroup()</div><div class="line"></div><div class="line">                                                <span class="comment">#@ 初始化 ThreadGroup 类</span></div><div class="line"></div><div class="line">                                                self.done = threading.Event()</div><div class="line"></div><div class="line">                                    <span class="comment">#@  self.backdoor_port = eventlet_backdoor.initialize_if_enabled()</span></div><div class="line"></div><div class="line">                                    launcher.launch_service(service)</div><div class="line"></div><div class="line">                                    <span class="keyword">return</span> launcher</div><div class="line"></div><div class="line">                            <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line"></div><div class="line">                                self._child_process_handle_signal()</div><div class="line"></div><div class="line">                                status, signo = self._child_wait_for_exit_or_signal(launcher)</div><div class="line"></div><div class="line">                                <span class="keyword">if</span> <span class="keyword">not</span> _is_sighup_and_daemon(signo):</div><div class="line"></div><div class="line">                                    <span class="keyword">break</span></div><div class="line"></div><div class="line">                                launcher.restart()</div><div class="line"></div><div class="line">                            os._exit(status)</div></pre></td></tr></tbody></table></figure></body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2015/06/17/cinder-api/" rel="bookmark">cinder-api</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2015/06/17/cinder-reset-api接口封装流程/" rel="bookmark">cinder reset api接口封装流程</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/cinder/" rel="tag"># cinder</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2013/09/19/mysql/" rel="next" title="mysql">
+                <i class="fa fa-chevron-left"></i> mysql
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2015/06/17/cinder-reset-api接口封装流程/" rel="prev" title="cinder reset api接口封装流程">
+                cinder reset api接口封装流程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#cinder-volume服务主进程分析"><span class="nav-number">1.</span> <span class="nav-text">cinder-volume服务主进程分析</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

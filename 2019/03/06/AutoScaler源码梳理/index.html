@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="Cluster AutoScaler源码梳理功能总结:   删除nodegroup中15分钟没有注册到kube的node 获取未调度的Pod列表，计算需要资源（limit之内） 获取comingnode（在nodegroup内，但是未注册kube集群，启动中）+node模版，计算（base，binpacking）的需要的node数 根据expander(random,most-pods,price">
+<meta name="keywords" content="k8s">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AutoScaler源码梳理">
+<meta property="og:url" content="https://www.flftuu.com/2019/03/06/AutoScaler源码梳理/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="Cluster AutoScaler源码梳理功能总结:   删除nodegroup中15分钟没有注册到kube的node 获取未调度的Pod列表，计算需要资源（limit之内） 获取comingnode（在nodegroup内，但是未注册kube集群，启动中）+node模版，计算（base，binpacking）的需要的node数 根据expander(random,most-pods,price">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-03-19T12:59:37.442Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="AutoScaler源码梳理">
+<meta name="twitter:description" content="Cluster AutoScaler源码梳理功能总结:   删除nodegroup中15分钟没有注册到kube的node 获取未调度的Pod列表，计算需要资源（limit之内） 获取comingnode（在nodegroup内，但是未注册kube集群，启动中）+node模版，计算（base，binpacking）的需要的node数 根据expander(random,most-pods,price">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2019/03/06/AutoScaler源码梳理/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>AutoScaler源码梳理 | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2019/03/06/AutoScaler源码梳理/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">AutoScaler源码梳理
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-06 14:43:20" itemprop="dateCreated datePublished" datetime="2019-03-06T14:43:20+08:00">2019-03-06</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-03-19 20:59:37" itemprop="dateModified" datetime="2019-03-19T20:59:37+08:00">2019-03-19</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2019/03/06/AutoScaler源码梳理/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/03/06/AutoScaler源码梳理/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">4.1k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">4 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><h1 id="Cluster-AutoScaler源码梳理"><a href="#Cluster-AutoScaler源码梳理" class="headerlink" title="Cluster AutoScaler源码梳理"></a>Cluster AutoScaler源码梳理</h1><p><strong>功能总结:</strong></p>
+<blockquote>
+<ol>
+<li>删除nodegroup中15分钟没有注册到kube的node</li>
+<li>获取未调度的Pod列表，计算需要资源（limit之内）</li>
+<li>获取comingnode（在nodegroup内，但是未注册kube集群，启动中）+node模版，计算（base，binpacking）的需要的node数</li>
+<li>根据expander(random,most-pods,price,least-waste)进行scaleup</li>
+<li>更新nodegroup的currentsize</li>
+</ol>
+</blockquote>
+<a id="more"></a>
+<p><strong>cluster ca 入口函数:</strong></p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {</div><div class="line">  </div><div class="line">   leaderElection := defaultLeaderElectionConfiguration()</div><div class="line">   <span class="comment">//默认进行选举</span></div><div class="line">   leaderElection.LeaderElect = <span class="literal">true</span></div><div class="line">  </div><div class="line">   bindFlags(&leaderElection, pflag.CommandLine)</div><div class="line">  </div><div class="line">   kube_flag.InitFlags()</div><div class="line">  </div><div class="line">   <span class="comment">//初始化健康检查 超过15分钟失败</span></div><div class="line">   healthCheck := metrics.NewHealthCheck(*maxInactivityTimeFlag, *maxFailingTimeFlag)</div><div class="line">  </div><div class="line">   glog.V(<span class="number">1</span>).Infof(<span class="string">"Cluster Autoscaler %s"</span>, ClusterAutoscalerVersion)</div><div class="line">  </div><div class="line">   correctEstimator := <span class="literal">false</span></div><div class="line">   <span class="comment">//评估算法 basic binpacking</span></div><div class="line">   <span class="keyword">for</span> _, availableEstimator := <span class="keyword">range</span> estimator.AvailableEstimators {</div><div class="line">      <span class="keyword">if</span> *estimatorFlag == availableEstimator {</div><div class="line">         correctEstimator = <span class="literal">true</span></div><div class="line">      }</div><div class="line">   }</div><div class="line">   <span class="keyword">if</span> !correctEstimator {</div><div class="line">      glog.Fatalf(<span class="string">"Unrecognized estimator: %v"</span>, *estimatorFlag)</div><div class="line">   }</div><div class="line">  </div><div class="line">   <span class="comment">//注册监控</span></div><div class="line">   <span class="comment">//注册健康检查</span></div><div class="line">   <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> {</div><div class="line">      http.Handle(<span class="string">"/metrics"</span>, prometheus.Handler())</div><div class="line">      http.Handle(<span class="string">"/health-check"</span>, healthCheck)</div><div class="line">      err := http.ListenAndServe(*address, <span class="literal">nil</span>)</div><div class="line">      glog.Fatalf(<span class="string">"Failed to start metrics: %v"</span>, err)</div><div class="line">   }()</div><div class="line">  </div><div class="line">   <span class="keyword">if</span> !leaderElection.LeaderElect {</div><div class="line">      run(healthCheck)</div><div class="line">   } <span class="keyword">else</span> {</div><div class="line">      <span class="comment">//默认</span></div><div class="line">      id, err := os.Hostname()</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Fatalf(<span class="string">"Unable to get hostname: %v"</span>, err)</div><div class="line">      }</div><div class="line">  </div><div class="line">      kubeClient := createKubeClient(getKubeConfig())</div><div class="line">  </div><div class="line">      <span class="comment">// Validate that the client is ok.</span></div><div class="line">      _, err = kubeClient.CoreV1().Nodes().List(metav1.ListOptions{})</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Fatalf(<span class="string">"Failed to get nodes from apiserver: %v"</span>, err)</div><div class="line">      }</div><div class="line">  </div><div class="line">      lock, err := resourcelock.New(</div><div class="line">         leaderElection.ResourceLock,</div><div class="line">         *namespace,</div><div class="line">         <span class="string">"cluster-autoscaler"</span>,</div><div class="line">         kubeClient.CoreV1(),</div><div class="line">         resourcelock.ResourceLockConfig{</div><div class="line">            Identity:      id,</div><div class="line">            EventRecorder: kube_util.CreateEventRecorder(kubeClient),</div><div class="line">         },</div><div class="line">      )</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Fatalf(<span class="string">"Unable to create leader election lock: %v"</span>, err)</div><div class="line">      }</div><div class="line">  </div><div class="line">      kube_leaderelection.RunOrDie(kube_leaderelection.LeaderElectionConfig{</div><div class="line">         Lock:          lock,</div><div class="line">         LeaseDuration: leaderElection.LeaseDuration.Duration,</div><div class="line">         RenewDeadline: leaderElection.RenewDeadline.Duration,</div><div class="line">         RetryPeriod:   leaderElection.RetryPeriod.Duration,</div><div class="line">         Callbacks: kube_leaderelection.LeaderCallbacks{</div><div class="line">            OnStartedLeading: <span class="function"><span class="keyword">func</span><span class="params">(_ <-<span class="keyword">chan</span> <span class="keyword">struct</span>{})</span></span> {</div><div class="line">               <span class="comment">// Since we are committing a suicide after losing</span></div><div class="line">               <span class="comment">// mastership, we can safely ignore the argument.</span></div><div class="line">               <span class="comment">//run 入口</span></div><div class="line">               run(healthCheck)</div><div class="line">            },</div><div class="line">            OnStoppedLeading: <span class="function"><span class="keyword">func</span><span class="params">()</span></span> {</div><div class="line">               glog.Fatalf(<span class="string">"lost master"</span>)</div><div class="line">            },</div><div class="line">         },</div><div class="line">      })</div><div class="line">   }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p><strong>run 方法:</strong></p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">run</span><span class="params">(healthCheck *metrics.HealthCheck)</span></span> {</div><div class="line">   metrics.RegisterAll()</div><div class="line">   kubeConfig := getKubeConfig()</div><div class="line">   kubeClient := createKubeClient(kubeConfig)</div><div class="line">   kubeEventRecorder := kube_util.CreateEventRecorder(kubeClient)</div><div class="line">   autoscalingOptions := createAutoscalingOptions()</div><div class="line">   metrics.UpdateNapEnabled(autoscalingOptions.NodeAutoprovisioningEnabled)</div><div class="line">   predicateCheckerStopChannel := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>{})</div><div class="line">   predicateChecker, err := simulator.NewPredicateChecker(kubeClient, predicateCheckerStopChannel)</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Fatalf(<span class="string">"Failed to create predicate checker: %v"</span>, err)</div><div class="line">   }</div><div class="line">   listerRegistryStopChannel := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>{})</div><div class="line">   listerRegistry := kube_util.NewListerRegistryWithDefaultListers(kubeClient, listerRegistryStopChannel)</div><div class="line"> </div><div class="line">   opts := core.AutoscalerOptions{</div><div class="line">      AutoscalingOptions: autoscalingOptions,</div><div class="line">      PredicateChecker:   predicateChecker,</div><div class="line">      KubeClient:         kubeClient,</div><div class="line">      KubeEventRecorder:  kubeEventRecorder,</div><div class="line">      ListerRegistry:     listerRegistry,</div><div class="line">   }</div><div class="line">   <span class="comment">//初始化autoscaler</span></div><div class="line">   autoscaler, err := core.NewAutoscaler(opts)</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Fatalf(<span class="string">"Failed to create autoscaler: %v"</span>, err)</div><div class="line">   }</div><div class="line">   registerSignalHandlers(autoscaler)</div><div class="line">   healthCheck.StartMonitoring()</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> {</div><div class="line">      <span class="keyword">select</span> {</div><div class="line">      <span class="comment">//默认15s CA执行一次</span></div><div class="line">      <span class="keyword">case</span> <-time.After(*scanInterval):</div><div class="line">         {</div><div class="line">            loopStart := time.Now()</div><div class="line">            metrics.UpdateLastTime(metrics.Main, loopStart)</div><div class="line">            <span class="comment">//更新健康信息</span></div><div class="line">            healthCheck.UpdateLastActivity(loopStart)</div><div class="line">            <span class="comment">//执行CA</span></div><div class="line">            err := autoscaler.RunOnce(loopStart)</div><div class="line">            <span class="keyword">if</span> err != <span class="literal">nil</span> && err.Type() != errors.TransientError {</div><div class="line">               metrics.RegisterError(err)</div><div class="line">            } <span class="keyword">else</span> {</div><div class="line">               healthCheck.UpdateLastSuccessfulRun(time.Now())</div><div class="line">            }</div><div class="line">            <span class="comment">//更新metrics</span></div><div class="line">            metrics.UpdateDurationFromStart(metrics.Main, loopStart)</div><div class="line">         }</div><div class="line">      }</div><div class="line">   }</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p><strong>New Autoscaler:</strong></p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div><div class="line">223</div><div class="line">224</div><div class="line">225</div><div class="line">226</div><div class="line">227</div><div class="line">228</div><div class="line">229</div><div class="line">230</div><div class="line">231</div><div class="line">232</div><div class="line">233</div><div class="line">234</div><div class="line">235</div><div class="line">236</div><div class="line">237</div><div class="line">238</div><div class="line">239</div><div class="line">240</div><div class="line">241</div><div class="line">242</div><div class="line">243</div><div class="line">244</div><div class="line">245</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(a *StaticAutoscaler)</span> <span class="title">RunOnce</span><span class="params">(currentTime time.Time)</span> <span class="title">errors</span>.<span class="title">AutoscalerError</span></span> {</div><div class="line">   a.cleanUpIfRequired()</div><div class="line">   <span class="comment">//kubernetes Lister</span></div><div class="line">   unschedulablePodLister := a.UnschedulablePodLister()</div><div class="line">   scheduledPodLister := a.ScheduledPodLister()</div><div class="line">   pdbLister := a.PodDisruptionBudgetLister()</div><div class="line">   scaleDown := a.scaleDown</div><div class="line">   <span class="comment">//context</span></div><div class="line">   autoscalingContext := a.AutoscalingContext</div><div class="line"> </div><div class="line">   glog.V(<span class="number">4</span>).Info(<span class="string">"Starting main loop"</span>)</div><div class="line"> </div><div class="line">   stateUpdateStart := time.Now()</div><div class="line">   <span class="comment">//获取全部node</span></div><div class="line">   allNodes, readyNodes, typedErr := a.obtainNodeLists()</div><div class="line">   <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> typedErr</div><div class="line">   }</div><div class="line">   <span class="keyword">if</span> a.actOnEmptyCluster(allNodes, readyNodes, currentTime) {</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">   }</div><div class="line">   <span class="comment">//更新cluster status</span></div><div class="line">   typedErr = a.updateClusterState(allNodes, currentTime)</div><div class="line">   <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> typedErr</div><div class="line">   }</div><div class="line">   metrics.UpdateDurationFromStart(metrics.UpdateState, stateUpdateStart)</div><div class="line"> </div><div class="line">   <span class="comment">// Update status information when the loop is done (regardless of reason)</span></div><div class="line">   <span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> {</div><div class="line">      <span class="keyword">if</span> autoscalingContext.WriteStatusConfigMap {</div><div class="line">         status := a.clusterStateRegistry.GetStatus(currentTime)</div><div class="line">         utils.WriteStatusConfigMap(autoscalingContext.ClientSet, autoscalingContext.ConfigNamespace,</div><div class="line">            status.GetReadableString(), a.AutoscalingContext.LogRecorder)</div><div class="line">      }</div><div class="line">   }()</div><div class="line">   <span class="comment">// Check if there are any nodes that failed to register in Kubernetes</span></div><div class="line">   <span class="comment">// 获取unregistered的node（node在CA group中，但是没有注册在kube中）</span></div><div class="line">   unregisteredNodes := a.clusterStateRegistry.GetUnregisteredNodes()</div><div class="line">   <span class="comment">// 删除unregistered的node</span></div><div class="line">   <span class="keyword">if</span> <span class="built_in">len</span>(unregisteredNodes) > <span class="number">0</span> {</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"%d unregistered nodes present"</span>, <span class="built_in">len</span>(unregisteredNodes))</div><div class="line">      removedAny, err := removeOldUnregisteredNodes(unregisteredNodes, autoscalingContext, currentTime, autoscalingContext.LogRecorder)</div><div class="line">      <span class="comment">// There was a problem with removing unregistered nodes. Retry in the next loop.</span></div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         <span class="keyword">if</span> removedAny {</div><div class="line">            glog.Warningf(<span class="string">"Some unregistered nodes were removed, but got error: %v"</span>, err)</div><div class="line">         } <span class="keyword">else</span> {</div><div class="line">            glog.Errorf(<span class="string">"Failed to remove unregistered nodes: %v"</span>, err)</div><div class="line"> </div><div class="line">         }</div><div class="line">         <span class="keyword">return</span> errors.ToAutoscalerError(errors.CloudProviderError, err)</div><div class="line">      }</div><div class="line">      <span class="comment">// Some nodes were removed. Let's skip this iteration, the next one should be better.</span></div><div class="line">      <span class="keyword">if</span> removedAny {</div><div class="line">         glog.V(<span class="number">0</span>).Infof(<span class="string">"Some unregistered nodes were removed, skipping iteration"</span>)</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">      }</div><div class="line">   }</div><div class="line">   <span class="comment">//集群不健康 csr.totalReadiness.Unready + csr.totalReadiness.LongNotStarted + csr.totalReadiness.LongUnregistered > csr.config.OkTotalUnreadyCount</span></div><div class="line">   <span class="keyword">if</span> !a.clusterStateRegistry.IsClusterHealthy() {</div><div class="line">      glog.Warning(<span class="string">"Cluster is not ready for autoscaling"</span>)</div><div class="line">      scaleDown.CleanUpUnneededNodes()</div><div class="line">      autoscalingContext.LogRecorder.Eventf(apiv1.EventTypeWarning, <span class="string">"ClusterUnhealthy"</span>, <span class="string">"Cluster is unhealthy"</span>)</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="comment">// Check if there has been a constant difference between the number of nodes in k8s and</span></div><div class="line">   <span class="comment">// the number of nodes on the cloud provider side.</span></div><div class="line">   <span class="comment">// <span class="doctag">TODO:</span> andrewskim - add protection for ready AWS nodes.</span></div><div class="line">   fixedSomething, err := fixNodeGroupSize(autoscalingContext, a.clusterStateRegistry, currentTime)</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Errorf(<span class="string">"Failed to fix node group sizes: %v"</span>, err)</div><div class="line">      <span class="keyword">return</span> errors.ToAutoscalerError(errors.CloudProviderError, err)</div><div class="line">   }</div><div class="line">   <span class="keyword">if</span> fixedSomething {</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"Some node group target size was fixed, skipping the iteration"</span>)</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">   }</div><div class="line"> </div><div class="line">   metrics.UpdateLastTime(metrics.Autoscaling, time.Now())</div><div class="line"> </div><div class="line">   <span class="comment">//获取未调度pod列表</span></div><div class="line">   allUnschedulablePods, err := unschedulablePodLister.List()</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Errorf(<span class="string">"Failed to list unscheduled pods: %v"</span>, err)</div><div class="line">      <span class="keyword">return</span> errors.ToAutoscalerError(errors.ApiCallError, err)</div><div class="line">   }</div><div class="line">   <span class="comment">//更新metrics</span></div><div class="line">   metrics.UpdateUnschedulablePodsCount(<span class="built_in">len</span>(allUnschedulablePods))</div><div class="line"> </div><div class="line">   allScheduled, err := scheduledPodLister.List()</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Errorf(<span class="string">"Failed to list scheduled pods: %v"</span>, err)</div><div class="line">      <span class="keyword">return</span> errors.ToAutoscalerError(errors.ApiCallError, err)</div><div class="line">   }</div><div class="line"> </div><div class="line">   allUnschedulablePods, allScheduled, err = a.processors.PodListProcessor.Process(a.AutoscalingContext, allUnschedulablePods, allScheduled, allNodes)</div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      glog.Errorf(<span class="string">"Failed to process pod list: %v"</span>, err)</div><div class="line">      <span class="keyword">return</span> errors.ToAutoscalerError(errors.InternalError, err)</div><div class="line">   }</div><div class="line"> </div><div class="line">   ConfigurePredicateCheckerForLoop(allUnschedulablePods, allScheduled, a.PredicateChecker)</div><div class="line"> </div><div class="line">   <span class="comment">// We need to check whether pods marked as unschedulable are actually unschedulable.</span></div><div class="line">   <span class="comment">// It's likely we added a new node and the scheduler just haven't managed to put the</span></div><div class="line">   <span class="comment">// pod on in yet. In this situation we don't want to trigger another scale-up.</span></div><div class="line">   <span class="comment">//</span></div><div class="line">   <span class="comment">// It's also important to prevent uncontrollable cluster growth if CA's simulated</span></div><div class="line">   <span class="comment">// scheduler differs in opinion with real scheduler. Example of such situation:</span></div><div class="line">   <span class="comment">// - CA and Scheduler has slightly different configuration</span></div><div class="line">   <span class="comment">// - Scheduler can't schedule a pod and marks it as unschedulable</span></div><div class="line">   <span class="comment">// - CA added a node which should help the pod</span></div><div class="line">   <span class="comment">// - Scheduler doesn't schedule the pod on the new node</span></div><div class="line">   <span class="comment">//   because according to it logic it doesn't fit there</span></div><div class="line">   <span class="comment">// - CA see the pod is still unschedulable, so it adds another node to help it</span></div><div class="line">   <span class="comment">//</span></div><div class="line">   <span class="comment">// With the check enabled the last point won't happen because CA will ignore a pod</span></div><div class="line">   <span class="comment">// which is supposed to schedule on an existing node.</span></div><div class="line">   scaleDownForbidden := <span class="literal">false</span></div><div class="line"> </div><div class="line">   unschedulablePodsWithoutTPUs := tpu.ClearTPURequests(allUnschedulablePods)</div><div class="line"> </div><div class="line">   <span class="comment">// Some unschedulable pods can be waiting for lower priority pods preemption so they have nominated node to run.</span></div><div class="line">   <span class="comment">// Such pods don't require scale up but should be considered during scale down.</span></div><div class="line">   unschedulablePods, unschedulableWaitingForLowerPriorityPreemption := FilterOutExpendableAndSplit(unschedulablePodsWithoutTPUs, a.ExpendablePodsPriorityCutoff)</div><div class="line"> </div><div class="line">   glog.V(<span class="number">4</span>).Infof(<span class="string">"Filtering out schedulables"</span>)</div><div class="line">   filterOutSchedulableStart := time.Now()</div><div class="line"> </div><div class="line">   unschedulablePodsToHelp := FilterOutSchedulable(unschedulablePods, readyNodes, allScheduled,</div><div class="line">      unschedulableWaitingForLowerPriorityPreemption, a.PredicateChecker, a.ExpendablePodsPriorityCutoff)</div><div class="line">   metrics.UpdateDurationFromStart(metrics.FilterOutSchedulable, filterOutSchedulableStart)</div><div class="line"> </div><div class="line">   <span class="keyword">if</span> <span class="built_in">len</span>(unschedulablePodsToHelp) != <span class="built_in">len</span>(unschedulablePods) {</div><div class="line">      glog.V(<span class="number">2</span>).Info(<span class="string">"Schedulable pods present"</span>)</div><div class="line">      scaleDownForbidden = <span class="literal">true</span></div><div class="line">   } <span class="keyword">else</span> {</div><div class="line">      glog.V(<span class="number">4</span>).Info(<span class="string">"No schedulable pods"</span>)</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">if</span> <span class="built_in">len</span>(unschedulablePodsToHelp) == <span class="number">0</span> {</div><div class="line">      glog.V(<span class="number">1</span>).Info(<span class="string">"No unschedulable pods"</span>)</div><div class="line">   } <span class="keyword">else</span> <span class="keyword">if</span> a.MaxNodesTotal > <span class="number">0</span> && <span class="built_in">len</span>(readyNodes) >= a.MaxNodesTotal {</div><div class="line">      glog.V(<span class="number">1</span>).Info(<span class="string">"Max total nodes in cluster reached"</span>)</div><div class="line">   } <span class="keyword">else</span> <span class="keyword">if</span> allPodsAreNew(unschedulablePodsToHelp, currentTime) {</div><div class="line">      <span class="comment">// The assumption here is that these pods have been created very recently and probably there</span></div><div class="line">      <span class="comment">// is more pods to come. In theory we could check the newest pod time but then if pod were created</span></div><div class="line">      <span class="comment">// slowly but at the pace of 1 every 2 seconds then no scale up would be triggered for long time.</span></div><div class="line">      <span class="comment">// We also want to skip a real scale down (just like if the pods were handled).</span></div><div class="line">      scaleDownForbidden = <span class="literal">true</span></div><div class="line">      glog.V(<span class="number">1</span>).Info(<span class="string">"Unschedulable pods are very new, waiting one iteration for more"</span>)</div><div class="line">   } <span class="keyword">else</span> {</div><div class="line">      daemonsets, err := a.ListerRegistry.DaemonSetLister().List()</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Failed to get daemonset list"</span>)</div><div class="line">         <span class="keyword">return</span> errors.ToAutoscalerError(errors.ApiCallError, err)</div><div class="line">      }</div><div class="line"> </div><div class="line">      scaleUpStart := time.Now()</div><div class="line">      metrics.UpdateLastTime(metrics.ScaleUp, scaleUpStart)</div><div class="line"> </div><div class="line">      scaleUpStatus, typedErr := ScaleUp(autoscalingContext, a.processors, a.clusterStateRegistry, unschedulablePodsToHelp, readyNodes, daemonsets)</div><div class="line"> </div><div class="line">      metrics.UpdateDurationFromStart(metrics.ScaleUp, scaleUpStart)</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Failed to scale up: %v"</span>, typedErr)</div><div class="line">         <span class="keyword">return</span> typedErr</div><div class="line">      }</div><div class="line">      <span class="keyword">if</span> a.processors != <span class="literal">nil</span> && a.processors.ScaleUpStatusProcessor != <span class="literal">nil</span> {</div><div class="line">         a.processors.ScaleUpStatusProcessor.Process(autoscalingContext, scaleUpStatus)</div><div class="line">      }</div><div class="line">      <span class="keyword">if</span> scaleUpStatus.ScaledUp {</div><div class="line">         a.lastScaleUpTime = currentTime</div><div class="line">         <span class="comment">// No scale down in this iteration.</span></div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">      }</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">if</span> a.ScaleDownEnabled {</div><div class="line">      pdbs, err := pdbLister.List()</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Failed to list pod disruption budgets: %v"</span>, err)</div><div class="line">         <span class="keyword">return</span> errors.ToAutoscalerError(errors.ApiCallError, err)</div><div class="line">      }</div><div class="line"> </div><div class="line">      unneededStart := time.Now()</div><div class="line"> </div><div class="line">      glog.V(<span class="number">4</span>).Infof(<span class="string">"Calculating unneeded nodes"</span>)</div><div class="line"> </div><div class="line">      scaleDown.CleanUp(currentTime)</div><div class="line">      potentiallyUnneeded := getPotentiallyUnneededNodes(autoscalingContext, allNodes)</div><div class="line"> </div><div class="line">      typedErr := scaleDown.UpdateUnneededNodes(allNodes, potentiallyUnneeded, <span class="built_in">append</span>(allScheduled, unschedulableWaitingForLowerPriorityPreemption...), currentTime, pdbs)</div><div class="line">      <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Failed to scale down: %v"</span>, typedErr)</div><div class="line">         <span class="keyword">return</span> typedErr</div><div class="line">      }</div><div class="line"> </div><div class="line">      metrics.UpdateDurationFromStart(metrics.FindUnneeded, unneededStart)</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> glog.V(<span class="number">4</span>) {</div><div class="line">         <span class="keyword">for</span> key, val := <span class="keyword">range</span> scaleDown.unneededNodes {</div><div class="line">            glog.Infof(<span class="string">"%s is unneeded since %s duration %s"</span>, key, val.String(), currentTime.Sub(val).String())</div><div class="line">         }</div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="comment">// In dry run only utilization is updated</span></div><div class="line">      calculateUnneededOnly := scaleDownForbidden ||</div><div class="line">         a.lastScaleUpTime.Add(a.ScaleDownDelayAfterAdd).After(currentTime) ||</div><div class="line">         a.lastScaleDownFailTime.Add(a.ScaleDownDelayAfterFailure).After(currentTime) ||</div><div class="line">         a.lastScaleDownDeleteTime.Add(a.ScaleDownDelayAfterDelete).After(currentTime) ||</div><div class="line">         scaleDown.nodeDeleteStatus.IsDeleteInProgress()</div><div class="line"> </div><div class="line">      glog.V(<span class="number">4</span>).Infof(<span class="string">"Scale down status: unneededOnly=%v lastScaleUpTime=%s "</span>+</div><div class="line">         <span class="string">"lastScaleDownDeleteTime=%v lastScaleDownFailTime=%s scaleDownForbidden=%v isDeleteInProgress=%v"</span>,</div><div class="line">         calculateUnneededOnly, a.lastScaleUpTime, a.lastScaleDownDeleteTime, a.lastScaleDownFailTime,</div><div class="line">         scaleDownForbidden, scaleDown.nodeDeleteStatus.IsDeleteInProgress())</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> !calculateUnneededOnly {</div><div class="line">         glog.V(<span class="number">4</span>).Infof(<span class="string">"Starting scale down"</span>)</div><div class="line"> </div><div class="line">         <span class="comment">// We want to delete unneeded Node Groups only if there was no recent scale up,</span></div><div class="line">         <span class="comment">// and there is no current delete in progress and there was no recent errors.</span></div><div class="line">         a.processors.NodeGroupManager.RemoveUnneededNodeGroups(autoscalingContext)</div><div class="line"> </div><div class="line">         scaleDownStart := time.Now()</div><div class="line">         metrics.UpdateLastTime(metrics.ScaleDown, scaleDownStart)</div><div class="line">         result, typedErr := scaleDown.TryToScaleDown(allNodes, allScheduled, pdbs, currentTime)</div><div class="line">         metrics.UpdateDurationFromStart(metrics.ScaleDown, scaleDownStart)</div><div class="line"> </div><div class="line">         <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">            glog.Errorf(<span class="string">"Failed to scale down: %v"</span>, err)</div><div class="line">            a.lastScaleDownFailTime = currentTime</div><div class="line">            <span class="keyword">return</span> typedErr</div><div class="line">         }</div><div class="line">         <span class="keyword">if</span> result == ScaleDownNodeDeleted {</div><div class="line">            a.lastScaleDownDeleteTime = currentTime</div><div class="line">         }</div><div class="line">      }</div><div class="line">   }</div><div class="line">   <span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p><strong>Autoscaler ScaleUp:</strong></p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div><div class="line">223</div><div class="line">224</div><div class="line">225</div><div class="line">226</div><div class="line">227</div><div class="line">228</div><div class="line">229</div><div class="line">230</div><div class="line">231</div><div class="line">232</div><div class="line">233</div><div class="line">234</div><div class="line">235</div><div class="line">236</div><div class="line">237</div><div class="line">238</div><div class="line">239</div><div class="line">240</div><div class="line">241</div><div class="line">242</div><div class="line">243</div><div class="line">244</div><div class="line">245</div><div class="line">246</div><div class="line">247</div><div class="line">248</div><div class="line">249</div><div class="line">250</div><div class="line">251</div><div class="line">252</div><div class="line">253</div><div class="line">254</div><div class="line">255</div><div class="line">256</div><div class="line">257</div><div class="line">258</div><div class="line">259</div><div class="line">260</div><div class="line">261</div><div class="line">262</div><div class="line">263</div><div class="line">264</div><div class="line">265</div><div class="line">266</div><div class="line">267</div><div class="line">268</div><div class="line">269</div><div class="line">270</div><div class="line">271</div><div class="line">272</div><div class="line">273</div><div class="line">274</div><div class="line">275</div><div class="line">276</div><div class="line">277</div><div class="line">278</div><div class="line">279</div><div class="line">280</div><div class="line">281</div><div class="line">282</div><div class="line">283</div><div class="line">284</div><div class="line">285</div><div class="line">286</div><div class="line">287</div><div class="line">288</div><div class="line">289</div><div class="line">290</div><div class="line">291</div><div class="line">292</div><div class="line">293</div><div class="line">294</div><div class="line">295</div><div class="line">296</div><div class="line">297</div><div class="line">298</div><div class="line">299</div><div class="line">300</div><div class="line">301</div><div class="line">302</div><div class="line">303</div><div class="line">304</div><div class="line">305</div><div class="line">306</div><div class="line">307</div><div class="line">308</div><div class="line">309</div><div class="line">310</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">ScaleUp</span><span class="params">(context *context.AutoscalingContext, processors *ca_processors.AutoscalingProcessors, clusterStateRegistry *clusterstate.ClusterStateRegistry, unschedulablePods []*apiv1.Pod,</span></span></div><div class="line"><span class="function"><span class="params">   nodes []*apiv1.Node, daemonSets []*extensionsv1.DaemonSet)</span> <span class="params">(*status.ScaleUpStatus, errors.AutoscalerError)</span></span> {</div><div class="line">   <span class="comment">// From now on we only care about unschedulable pods that were marked after the newest</span></div><div class="line">   <span class="comment">// node became available for the scheduler.</span></div><div class="line">   glog.V(<span class="number">0</span>).Info(<span class="string">"kce cloud provider begin scale up ***********************"</span>)</div><div class="line"> </div><div class="line">   <span class="comment">//未调度的pod集合</span></div><div class="line">   <span class="keyword">if</span> <span class="built_in">len</span>(unschedulablePods) == <span class="number">0</span> {</div><div class="line">      glog.V(<span class="number">1</span>).Info(<span class="string">"No unschedulable pods"</span>)</div><div class="line">      <span class="keyword">return</span> &status.ScaleUpStatus{ScaledUp: <span class="literal">false</span>}, <span class="literal">nil</span></div><div class="line">   }</div><div class="line"> </div><div class="line">   now := time.Now()</div><div class="line"> </div><div class="line">   loggingQuota := glogx.PodsLoggingQuota()</div><div class="line"> </div><div class="line">   podsRemainUnschedulable := <span class="built_in">make</span>(<span class="keyword">map</span>[*apiv1.Pod]<span class="keyword">bool</span>)</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> _, pod := <span class="keyword">range</span> unschedulablePods {</div><div class="line">      glogx.V(<span class="number">1</span>).UpTo(loggingQuota).Infof(<span class="string">"Pod %s/%s is unschedulable"</span>, pod.Namespace, pod.Name)</div><div class="line">      podsRemainUnschedulable[pod] = <span class="literal">true</span></div><div class="line">   }</div><div class="line">   glogx.V(<span class="number">1</span>).Over(loggingQuota).Infof(<span class="string">"%v other pods are also unschedulable"</span>, -loggingQuota.Left())</div><div class="line"> </div><div class="line">   <span class="comment">//获取集群中全部Node与其对应的NodeGroup</span></div><div class="line">   nodeInfos, err := GetNodeInfosForGroups(nodes, context.CloudProvider, context.ClientSet,</div><div class="line">      daemonSets, context.PredicateChecker)</div><div class="line"> </div><div class="line">   <span class="comment">//todo</span></div><div class="line">   <span class="keyword">for</span> k,v := <span class="keyword">range</span> nodeInfos{</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce get nodegroup by all node， nodegroup: %s , nodeinfo: %v"</span>, k,v)</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span>, err.AddPrefix(<span class="string">"failed to build node infos for node groups: "</span>)</div><div class="line">   }</div><div class="line">   <span class="comment">//NodeGroup外的Nodes</span></div><div class="line">   nodesFromNotAutoscaledGroups, err := FilterOutNodesFromNotAutoscaledGroups(nodes, context.CloudProvider)</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> notGroupNode := <span class="keyword">range</span> nodesFromNotAutoscaledGroups{</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce node not in FilterOutNodesFromNotAutoscaledGroups: node : %v"</span>,notGroupNode)</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span>, err.AddPrefix(<span class="string">"failed to filter out nodes which are from not autoscaled groups: "</span>)</div><div class="line">   }</div><div class="line"> </div><div class="line">   nodeGroups := context.CloudProvider.NodeGroups()</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> ng := <span class="keyword">range</span> nodeGroups{</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce provider autoscale node group from yaml : %v"</span>,ng)</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="comment">//资源限额</span></div><div class="line">   resourceLimiter, errCP := context.CloudProvider.GetResourceLimiter()</div><div class="line"> </div><div class="line">   glog.V(<span class="number">0</span>).Infof(<span class="string">"kce  autoscale resource limiter : %v"</span>,resourceLimiter)</div><div class="line">   <span class="keyword">if</span> errCP != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span>, errors.ToAutoscalerError(</div><div class="line">         errors.CloudProviderError,</div><div class="line">         errCP)</div><div class="line">   }</div><div class="line">   <span class="comment">//调度之后的剩余Recourse</span></div><div class="line">   scaleUpResourcesLeft, errLimits := computeScaleUpResourcesLeftLimits(nodeGroups, nodeInfos, nodesFromNotAutoscaledGroups, resourceLimiter)</div><div class="line"> </div><div class="line">   glog.V(<span class="number">0</span>).Infof(<span class="string">"kce  autoscale up resource left : %v"</span>,scaleUpResourcesLeft)</div><div class="line">   <span class="keyword">if</span> errLimits != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">return</span> <span class="literal">nil</span>, errLimits.AddPrefix(<span class="string">"Could not compute total resources: "</span>)</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="comment">//Node在NodeGroup中但是没有Registed在kuber集群</span></div><div class="line">   <span class="comment">//计算方法  CurrentTarget - (readiness.Ready + readiness.Unready + readiness.LongNotStarted + readiness.LongUnregistered)</span></div><div class="line">   upcomingNodes := <span class="built_in">make</span>([]*schedulercache.NodeInfo, <span class="number">0</span>)</div><div class="line">   <span class="keyword">for</span> nodeGroup, numberOfNodes := <span class="keyword">range</span> clusterStateRegistry.GetUpcomingNodes() {</div><div class="line">      nodeTemplate, found := nodeInfos[nodeGroup]</div><div class="line">      <span class="keyword">if</span> !found {</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span>, errors.NewAutoscalerError(</div><div class="line">            errors.InternalError,</div><div class="line">            <span class="string">"failed to find template node for node group %s"</span>,</div><div class="line">            nodeGroup)</div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="keyword">for</span> i := <span class="number">0</span>; i < numberOfNodes; i++ {</div><div class="line">         upcomingNodes = <span class="built_in">append</span>(upcomingNodes, nodeTemplate)</div><div class="line">      }</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> upcomingnode := <span class="keyword">range</span> upcomingNodes{</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce upcoming nodes :"</span>, upcomingnode)</div><div class="line">   }</div><div class="line"> </div><div class="line">   podsPassingPredicates := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>][]*apiv1.Pod)</div><div class="line">   expansionOptions := <span class="built_in">make</span>([]expander.Option, <span class="number">0</span>)</div><div class="line"> </div><div class="line">   <span class="comment">//空 processor</span></div><div class="line">   <span class="keyword">if</span> processors != <span class="literal">nil</span> && processors.NodeGroupListProcessor != <span class="literal">nil</span> {</div><div class="line">      <span class="keyword">var</span> errProc error</div><div class="line">      nodeGroups, nodeInfos, errProc = processors.NodeGroupListProcessor.Process(context, nodeGroups, nodeInfos, unschedulablePods)</div><div class="line">      <span class="keyword">if</span> errProc != <span class="literal">nil</span> {</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span>, errors.ToAutoscalerError(errors.InternalError, errProc)</div><div class="line">      }</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">for</span> _, nodeGroup := <span class="keyword">range</span> nodeGroups {</div><div class="line">      <span class="comment">//todo</span></div><div class="line">      glog.V(<span class="number">0</span>).Info(<span class="string">"kce begin foreach nodeGroups : %s"</span>,nodeGroup.Id())</div><div class="line">      <span class="comment">// Autoprovisioned node groups without nodes are created later so skip check for them.</span></div><div class="line">      <span class="keyword">if</span> nodeGroup.Exist() && !clusterStateRegistry.IsNodeGroupSafeToScaleUp(nodeGroup.Id(), now) {</div><div class="line">         glog.Warningf(<span class="string">"Node group %s is not ready for scaleup"</span>, nodeGroup.Id())</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line"> </div><div class="line">      currentTargetSize, err := nodeGroup.TargetSize()</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Failed to get node group size: %v"</span>, err)</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line">      <span class="keyword">if</span> currentTargetSize >= nodeGroup.MaxSize() {</div><div class="line">         <span class="comment">// skip this node group.</span></div><div class="line">         glog.V(<span class="number">4</span>).Infof(<span class="string">"Skipping node group %s - max size reached"</span>, nodeGroup.Id())</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="comment">//get node template by node group</span></div><div class="line">      nodeInfo, found := nodeInfos[nodeGroup.Id()]</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> !found {</div><div class="line">         glog.Errorf(<span class="string">"No node info (kce template info) for: %s"</span>, nodeGroup.Id())</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line">      <span class="comment">//获取node group的recourse map</span></div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce begin compute scale up resources delta, nodeGroup : %s ,nodeInfo : %v, resourceLimiter : %v"</span>, nodeGroup.Id(),nodeInfo,resourceLimiter)</div><div class="line">      scaleUpResourcesDelta, err := computeScaleUpResourcesDelta(nodeInfo, nodeGroup, resourceLimiter)</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         glog.Errorf(<span class="string">"Skipping node group %s; error getting node group resources: %v"</span>, nodeGroup.Id(), err)</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="keyword">for</span> k,v := <span class="keyword">range</span> scaleUpResourcesDelta{</div><div class="line">         glog.V(<span class="number">0</span>).Infof(<span class="string">"kce complate compute scale up resources delta key : %s ,value : %v "</span>,k,v)</div><div class="line">      }</div><div class="line"> </div><div class="line">      checkResult := scaleUpResourcesLeft.checkScaleUpDeltaWithinLimits(scaleUpResourcesDelta)</div><div class="line">      <span class="keyword">if</span> checkResult.exceeded {</div><div class="line">         glog.V(<span class="number">4</span>).Infof(<span class="string">"Skipping node group %s; maximal limit exceeded for %v"</span>, nodeGroup.Id(), checkResult.exceededResources)</div><div class="line">         <span class="keyword">continue</span></div><div class="line">      }</div><div class="line"> </div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"kce scaleUpResourcesLeft node group %s; maximal limit exceeded for %v"</span>, nodeGroup.Id(), checkResult.exceededResources)</div><div class="line">      option := expander.Option{</div><div class="line">         NodeGroup: nodeGroup,</div><div class="line">         Pods:      <span class="built_in">make</span>([]*apiv1.Pod, <span class="number">0</span>),</div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="comment">//pod调度测试</span></div><div class="line">      glog.V(<span class="number">0</span>).Info(<span class="string">"kce unscheduler pod begin scheduler test... nodeGroup : %s ,nodeInfo : %v"</span>,nodeGroup.Id(),nodeInfo)</div><div class="line">      <span class="comment">//返回可以调度的Pod</span></div><div class="line">      option.Pods = FilterSchedulablePodsForNode(context, unschedulablePods, nodeGroup.Id(), nodeInfo)</div><div class="line"> </div><div class="line">      <span class="keyword">for</span> _, pod := <span class="keyword">range</span> option.Pods {</div><div class="line">         glogx.V(<span class="number">1</span>).UpTo(loggingQuota).Infof(<span class="string">"Option Pod %s/%s will be scheduler "</span>, pod.Namespace, pod.Name)</div><div class="line">         podsRemainUnschedulable[pod] = <span class="literal">false</span></div><div class="line">      }</div><div class="line">      passingPods := <span class="built_in">make</span>([]*apiv1.Pod, <span class="built_in">len</span>(option.Pods))</div><div class="line">      <span class="built_in">copy</span>(passingPods, option.Pods)</div><div class="line">      podsPassingPredicates[nodeGroup.Id()] = passingPods</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> <span class="built_in">len</span>(option.Pods) > <span class="number">0</span> {</div><div class="line">         <span class="comment">//计算需要node</span></div><div class="line">         <span class="keyword">if</span> context.EstimatorName == estimator.BinpackingEstimatorName {</div><div class="line">            binpackingEstimator := estimator.NewBinpackingNodeEstimator(context.PredicateChecker)</div><div class="line">            option.NodeCount = binpackingEstimator.Estimate(option.Pods, nodeInfo, upcomingNodes)</div><div class="line">            glog.V(<span class="number">0</span>).Info(<span class="string">"kce pod base estimator need node count : "</span>,option.NodeCount)</div><div class="line">         } <span class="keyword">else</span> <span class="keyword">if</span> context.EstimatorName == estimator.BasicEstimatorName {</div><div class="line">            basicEstimator := estimator.NewBasicNodeEstimator()</div><div class="line">            <span class="keyword">for</span> _, pod := <span class="keyword">range</span> option.Pods {</div><div class="line">               basicEstimator.Add(pod)</div><div class="line">            }</div><div class="line">            option.NodeCount, option.Debug = basicEstimator.Estimate(nodeInfo.Node(), upcomingNodes)</div><div class="line">            glog.V(<span class="number">0</span>).Info(<span class="string">"kce pod binpacking estimator : "</span>,option.Debug)</div><div class="line">            glog.V(<span class="number">0</span>).Info(<span class="string">"kce pod binpacking estimator need node count : "</span>,option.NodeCount)</div><div class="line">         } <span class="keyword">else</span> {</div><div class="line">            glog.Fatalf(<span class="string">"Unrecognized estimator: %s"</span>, context.EstimatorName)</div><div class="line">         }</div><div class="line">         <span class="comment">// append option node new count</span></div><div class="line">         <span class="keyword">if</span> option.NodeCount > <span class="number">0</span> {</div><div class="line">            expansionOptions = <span class="built_in">append</span>(expansionOptions, option)</div><div class="line">         } <span class="keyword">else</span> {</div><div class="line">            glog.V(<span class="number">0</span>).Infof(<span class="string">"No need for any nodes in %s"</span>, nodeGroup.Id())</div><div class="line">         }</div><div class="line">      } <span class="keyword">else</span> {</div><div class="line">         glog.V(<span class="number">0</span>).Infof(<span class="string">"No pod can fit to %s"</span>, nodeGroup.Id())</div><div class="line">      }</div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="comment">//全部nodegroup，以及options</span></div><div class="line">   <span class="keyword">if</span> <span class="built_in">len</span>(expansionOptions) == <span class="number">0</span> {</div><div class="line">      glog.V(<span class="number">1</span>).Info(<span class="string">"No expansion options"</span>)</div><div class="line">      <span class="keyword">return</span> &status.ScaleUpStatus{ScaledUp: <span class="literal">false</span>, PodsRemainUnschedulable: getRemainingPods(podsRemainUnschedulable)}, <span class="literal">nil</span></div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="comment">// Pick some expansion option.</span></div><div class="line">   <span class="comment">// 根据expansion (random ,mostpods, price,waste)配置获取最佳伸缩组</span></div><div class="line">   bestOption := context.ExpanderStrategy.BestOption(expansionOptions, nodeInfos)</div><div class="line">   <span class="keyword">if</span> bestOption != <span class="literal">nil</span> && bestOption.NodeCount > <span class="number">0</span> {</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"Best option to resize: %s"</span>, bestOption.NodeGroup.Id())</div><div class="line">      <span class="keyword">if</span> <span class="built_in">len</span>(bestOption.Debug) > <span class="number">0</span> {</div><div class="line">         glog.V(<span class="number">0</span>).Info(bestOption.Debug)</div><div class="line">      }</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"Estimated %d nodes needed in %s"</span>, bestOption.NodeCount, bestOption.NodeGroup.Id())</div><div class="line">      <span class="comment">//获取需要伸缩的newnode</span></div><div class="line">      newNodes := bestOption.NodeCount</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> context.MaxNodesTotal > <span class="number">0</span> && <span class="built_in">len</span>(nodes)+newNodes > context.MaxNodesTotal {</div><div class="line">         glog.V(<span class="number">0</span>).Infof(<span class="string">"Capping size to max cluster total size (%d)"</span>, context.MaxNodesTotal)</div><div class="line">         newNodes = context.MaxNodesTotal - <span class="built_in">len</span>(nodes)</div><div class="line">         <span class="keyword">if</span> newNodes < <span class="number">1</span> {</div><div class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, errors.NewAutoscalerError(</div><div class="line">               errors.TransientError,</div><div class="line">               <span class="string">"max node total count already reached"</span>)</div><div class="line">         }</div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="keyword">if</span> !bestOption.NodeGroup.Exist() {</div><div class="line">         oldId := bestOption.NodeGroup.Id()</div><div class="line">         bestOption.NodeGroup, err = processors.NodeGroupManager.CreateNodeGroup(context, bestOption.NodeGroup)</div><div class="line">         <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">         }</div><div class="line">         <span class="comment">// Node group id may change when we create node group and we need to update</span></div><div class="line">         <span class="comment">// our data structures.</span></div><div class="line">         <span class="keyword">if</span> oldId != bestOption.NodeGroup.Id() {</div><div class="line">            podsPassingPredicates[bestOption.NodeGroup.Id()] = podsPassingPredicates[oldId]</div><div class="line">            <span class="built_in">delete</span>(podsPassingPredicates, oldId)</div><div class="line">            nodeInfos[bestOption.NodeGroup.Id()] = nodeInfos[oldId]</div><div class="line">            <span class="built_in">delete</span>(nodeInfos, oldId)</div><div class="line">         }</div><div class="line">      }</div><div class="line"> </div><div class="line">      nodeInfo, found := nodeInfos[bestOption.NodeGroup.Id()]</div><div class="line">      <span class="keyword">if</span> !found {</div><div class="line">         <span class="comment">// This should never happen, as we already should have retrieved</span></div><div class="line">         <span class="comment">// nodeInfo for any considered nodegroup.</span></div><div class="line">         glog.Errorf(<span class="string">"No node info for: %s"</span>, bestOption.NodeGroup.Id())</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span>, errors.NewAutoscalerError(</div><div class="line">            errors.CloudProviderError,</div><div class="line">            <span class="string">"No node info for best expansion option!"</span>)</div><div class="line">      }</div><div class="line"> </div><div class="line">      <span class="comment">// apply upper limits for CPU and memory</span></div><div class="line">      newNodes, err = applyScaleUpResourcesLimits(newNodes, scaleUpResourcesLeft, nodeInfo, bestOption.NodeGroup, resourceLimiter)</div><div class="line">      <span class="keyword">if</span> err != <span class="literal">nil</span> {</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">      }</div><div class="line">      <span class="comment">// targetNodeGroup 即为bestOption的NodeGroup</span></div><div class="line">      targetNodeGroups := []cloudprovider.NodeGroup{bestOption.NodeGroup}</div><div class="line">      <span class="keyword">if</span> context.BalanceSimilarNodeGroups {</div><div class="line">         similarNodeGroups, typedErr := nodegroupset.FindSimilarNodeGroups(bestOption.NodeGroup, context.CloudProvider, nodeInfos)</div><div class="line">         <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, typedErr.AddPrefix(<span class="string">"Failed to find matching node groups: "</span>)</div><div class="line">         }</div><div class="line">         similarNodeGroups = filterNodeGroupsByPods(similarNodeGroups, bestOption.Pods, podsPassingPredicates)</div><div class="line">         glog.V(<span class="number">0</span>).Infof(<span class="string">"kce fine node similar group %v "</span>, similarNodeGroups)</div><div class="line">         <span class="keyword">for</span> _, ng := <span class="keyword">range</span> similarNodeGroups {</div><div class="line">            <span class="keyword">if</span> clusterStateRegistry.IsNodeGroupSafeToScaleUp(ng.Id(), now) {</div><div class="line">               targetNodeGroups = <span class="built_in">append</span>(targetNodeGroups, ng)</div><div class="line">            } <span class="keyword">else</span> {</div><div class="line">               <span class="comment">// This should never happen, as we will filter out the node group earlier on</span></div><div class="line">               <span class="comment">// because of missing entry in podsPassingPredicates, but double checking doesn't</span></div><div class="line">               <span class="comment">// really cost us anything</span></div><div class="line">               glog.V(<span class="number">2</span>).Infof(<span class="string">"Ignoring node group %s when balancing: group is not ready for scaleup"</span>, ng.Id())</div><div class="line">            }</div><div class="line">         }</div><div class="line">         <span class="keyword">if</span> <span class="built_in">len</span>(targetNodeGroups) > <span class="number">1</span> {</div><div class="line">            <span class="keyword">var</span> buffer bytes.Buffer</div><div class="line">            <span class="keyword">for</span> i, ng := <span class="keyword">range</span> targetNodeGroups {</div><div class="line">               <span class="keyword">if</span> i > <span class="number">0</span> {</div><div class="line">                  buffer.WriteString(<span class="string">", "</span>)</div><div class="line">               }</div><div class="line">               buffer.WriteString(ng.Id())</div><div class="line">            }</div><div class="line">            glog.V(<span class="number">0</span>).Infof(<span class="string">"Splitting scale-up between %v similar node groups: {%v}"</span>, <span class="built_in">len</span>(targetNodeGroups), buffer.String())</div><div class="line">         }</div><div class="line">      }</div><div class="line">      scaleUpInfos, typedErr := nodegroupset.BalanceScaleUpBetweenGroups(</div><div class="line">         targetNodeGroups, newNodes)</div><div class="line">      <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">         <span class="keyword">return</span> <span class="literal">nil</span>, typedErr</div><div class="line">      }</div><div class="line">      glog.V(<span class="number">0</span>).Infof(<span class="string">"Final scale-up plan: %v"</span>, scaleUpInfos)</div><div class="line">      <span class="keyword">for</span> _, info := <span class="keyword">range</span> scaleUpInfos {</div><div class="line">         typedErr := executeScaleUp(context, clusterStateRegistry, info, gpu.GetGpuTypeForMetrics(nodeInfo.Node(), <span class="literal">nil</span>))</div><div class="line">         <span class="keyword">if</span> typedErr != <span class="literal">nil</span> {</div><div class="line">            <span class="keyword">return</span> <span class="literal">nil</span>, typedErr</div><div class="line">         }</div><div class="line">      }</div><div class="line"> </div><div class="line">      clusterStateRegistry.Recalculate()</div><div class="line">      glog.V(<span class="number">0</span>).Info(<span class="string">"kce cloud provider end scale up ***********************"</span>)</div><div class="line">      <span class="keyword">return</span> &status.ScaleUpStatus{</div><div class="line">            ScaledUp:                <span class="literal">true</span>,</div><div class="line">            ScaleUpInfos:            scaleUpInfos,</div><div class="line">            PodsRemainUnschedulable: getRemainingPods(podsRemainUnschedulable),</div><div class="line">            PodsTriggeredScaleUp:    bestOption.Pods,</div><div class="line">            PodsAwaitEvaluation:     getPodsAwaitingEvaluation(unschedulablePods, podsRemainUnschedulable, bestOption.Pods)},</div><div class="line">         <span class="literal">nil</span></div><div class="line">   }</div><div class="line"> </div><div class="line">   <span class="keyword">return</span> &status.ScaleUpStatus{ScaledUp: <span class="literal">false</span>, PodsRemainUnschedulable: getRemainingPods(podsRemainUnschedulable)}, <span class="literal">nil</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure></body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/19/API-Server简介/" rel="bookmark">API Server简介</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/01/CNI网络架构解析/" rel="bookmark">CNI网络架构解析</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/06/AutoScaler设计文档/" rel="bookmark">AutoScaler设计文档</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/25/Controller-Manager/" rel="bookmark">Controller Manager简介</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/27/Kube-Scheduler简介/" rel="bookmark">Kube-Scheduler简介</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/k8s/" rel="tag"># k8s</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/05/flannel优化方案/" rel="next" title="flannel优化方案">
+                <i class="fa fa-chevron-left"></i> flannel优化方案
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/03/06/AutoScaler设计文档/" rel="prev" title="AutoScaler设计文档">
+                AutoScaler设计文档 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Cluster-AutoScaler源码梳理"><span class="nav-number">1.</span> <span class="nav-text">Cluster AutoScaler源码梳理</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

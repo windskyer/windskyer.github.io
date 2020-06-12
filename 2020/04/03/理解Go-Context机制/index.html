@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="1 什么是Context最近在公司分析gRPC源码，proto文件生成的代码，接口函数第一个参数统一是ctx context.Context接口，公司不少同事都不了解这样设计的出发点是什么，其实我也不了解其背后的原理。今天趁着妮妲台风妹子正面登陆深圳，全市停工、停课、停业，在家休息找了一些资料研究把玩一把。">
+<meta name="keywords" content="Go">
+<meta property="og:type" content="article">
+<meta property="og:title" content="理解Go Context机制">
+<meta property="og:url" content="https://www.flftuu.com/2020/04/03/理解Go-Context机制/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="1 什么是Context最近在公司分析gRPC源码，proto文件生成的代码，接口函数第一个参数统一是ctx context.Context接口，公司不少同事都不了解这样设计的出发点是什么，其实我也不了解其背后的原理。今天趁着妮妲台风妹子正面登陆深圳，全市停工、停课、停业，在家休息找了一些资料研究把玩一把。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2020-06-03T09:05:08.367Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="理解Go Context机制">
+<meta name="twitter:description" content="1 什么是Context最近在公司分析gRPC源码，proto文件生成的代码，接口函数第一个参数统一是ctx context.Context接口，公司不少同事都不了解这样设计的出发点是什么，其实我也不了解其背后的原理。今天趁着妮妲台风妹子正面登陆深圳，全市停工、停课、停业，在家休息找了一些资料研究把玩一把。">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2020/04/03/理解Go-Context机制/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>理解Go Context机制 | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2020/04/03/理解Go-Context机制/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">理解Go Context机制
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2020-04-03 15:34:48" itemprop="dateCreated datePublished" datetime="2020-04-03T15:34:48+08:00">2020-04-03</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2020-06-03 17:05:08" itemprop="dateModified" datetime="2020-06-03T17:05:08+08:00">2020-06-03</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2020/04/03/理解Go-Context机制/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2020/04/03/理解Go-Context机制/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">1.3k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">1 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><h2 id="1-什么是Context"><a href="#1-什么是Context" class="headerlink" title="1 什么是Context"></a>1 什么是Context</h2><p>最近在公司分析gRPC源码，proto文件生成的代码，接口函数第一个参数统一是ctx context.Context接口，公司不少同事都不了解这样设计的出发点是什么，其实我也不了解其背后的原理。今天趁着妮妲台风妹子正面登陆深圳，全市停工、停课、停业，在家休息找了一些资料研究把玩一把。</p>
+<a id="more"></a>
+<p>Context通常被译作上下文，它是一个比较抽象的概念。在公司技术讨论时也经常会提到上下文。一般理解为程序单元的一个运行状态、现场、快照，而翻译中上下又很好地诠释了其本质，上下上下则是存在上下层的传递，上会把内容传递给下。在Go语言中，程序单元也就指的是Goroutine。</p>
+<p>每个Goroutine在执行之前，都要先知道程序当前的执行状态，通常将这些执行状态封装在一个Context变量中，传递给要执行的Goroutine中。上下文则几乎已经成为传递与请求同生存周期变量的标准方法。在网络编程下，当接收到一个网络请求Request，处理Request时，我们可能需要开启不同的Goroutine来获取数据与逻辑处理，即一个请求Request，会在多个Goroutine中处理。而这些Goroutine可能需要共享Request的一些信息；同时当Request被取消或者超时的时候，所有从这个Request创建的所有Goroutine也应该被结束。</p>
+<h2 id="2-context包"><a href="#2-context包" class="headerlink" title="2 context包"></a>2 context包</h2><p>Go的设计者早考虑多个Goroutine共享数据，以及多Goroutine管理机制。Context介绍请参考Go Concurrency Patterns: Context，golang.org/x/net/context包就是这种机制的实现。</p>
+<p>context包不仅实现了在程序单元之间共享状态变量的方法，同时能通过简单的方法，使我们在被调用程序单元的外部，通过设置ctx变量值，将过期或撤销这些信号传递给被调用的程序单元。在网络编程中，若存在A调用B的API, B再调用C的API，若A调用B取消，那也要取消B调用C，通过在A,B,C的API调用之间传递Context，以及判断其状态，就能解决此问题，这是为什么gRPC的接口中带上ctx context.Context参数的原因之一。</p>
+<p>Go1.7(当前是RC2版本)已将原来的golang.org/x/net/context包挪入了标准库中，放在$GOROOT/src/context下面。标准库中net、net/http、os/exec都用到了context。同时为了考虑兼容，在原golang.org/x/net/context包下存在两个文件，go17.go是调用标准库的context包，而pre_go17.go则是之前的默认实现，其介绍请参考go程序包源码解读。</p>
+<p>context包的核心就是Context接口，其定义如下：</p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> {</div><div class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</div><div class="line">    Done() <-<span class="keyword">chan</span> <span class="keyword">struct</span>{}</div><div class="line">    Err() error</div><div class="line">    Value(key <span class="keyword">interface</span>{}) <span class="keyword">interface</span>{}</div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<blockquote>
+<ol>
+<li>Deadline会返回一个超时时间，Goroutine获得了超时时间后，例如可以对某些io操作设定超时时间。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="2">
+<li>Done方法返回一个信道（channel），当Context被撤销或过期时，该信道是关闭的，即它是一个表示Context是否已关闭的信号。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="3">
+<li>当Done信道关闭后，Err方法表明Context被撤的原因。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="4">
+<li>Value可以让Goroutine共享一些数据，当然获得数据是协程安全的。但使用这些数据的时候要注意同步，比如返回了一个map，而这个map的读写则要加锁。</li>
+</ol>
+</blockquote>
+<p>Context接口没有提供方法来设置其值和过期时间，也没有提供方法直接将其自身撤销。也就是说，Context不能改变和撤销其自身。那么该怎么通过Context传递改变后的状态呢？</p>
+<h2 id="3-context使用"><a href="#3-context使用" class="headerlink" title="3 context使用"></a>3 context使用</h2><p>无论是Goroutine，他们的创建和调用关系总是像层层调用进行的，就像人的辈分一样，而更靠顶部的Goroutine应有办法主动关闭其下属的Goroutine的执行（不然程序可能就失控了）。为了实现这种关系，Context结构也应该像一棵树，叶子节点须总是由根节点衍生出来的。</p>
+<p>要创建Context树，第一步就是要得到根节点，context.Background函数的返回值就是根节点：</p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">Background</span><span class="params">()</span> <span class="title">Context</span></span></div></pre></td></tr></tbody></table></figure>
+<p>该函数返回空的Context，该Context一般由接收请求的第一个Goroutine创建，是与进入请求对应的Context根节点，它不能被取消、没有值、也没有过期时间。它常常作为处理Request的顶层context存在。</p>
+<p>有了根节点，又该怎么创建其它的子节点，孙节点呢？context包为我们提供了多个函数来创建他们：</p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithDeadline</span><span class="params">(parent Context, deadline time.Time)</span> <span class="params">(Context, CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithTimeout</span><span class="params">(parent Context, timeout time.Duration)</span> <span class="params">(Context, CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key <span class="keyword">interface</span>{}, val <span class="keyword">interface</span>{})</span> <span class="title">Context</span></span></div></pre></td></tr></tbody></table></figure>
+<p>函数都接收一个Context类型的参数parent，并返回一个Context类型的值，这样就层层创建出不同的节点。子节点是从复制父节点得到的，并且根据接收参数设定子节点的一些状态值，接着就可以将子节点传递给下层的Goroutine了。</p>
+<p>再回到之前的问题：该怎么通过Context传递改变后的状态呢？使用Context的Goroutine无法取消某个操作，其实这也是符合常理的，因为这些Goroutine是被某个父Goroutine创建的，而理应只有父Goroutine可以取消操作。在父Goroutine中可以通过WithCancel方法获得一个cancel方法，从而获得cancel的权利。</p>
+<p>第一个WithCancel函数，它是将父节点复制到子节点，并且还返回一个额外的CancelFunc函数类型变量，该函数类型的定义为：<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">type</span> CancelFunc <span class="function"><span class="keyword">func</span><span class="params">()</span></span></div></pre></td></tr></tbody></table></figure><p></p>
+<p>调用CancelFunc对象将撤销对应的Context对象，这就是主动撤销Context的方法。在父节点的Context所对应的环境中，通过WithCancel函数不仅可创建子节点的Context，同时也获得了该节点Context的控制权，一旦执行该函数，则该节点Context就结束了，则子节点需要类似如下代码来判断是否已结束，并退出该Goroutine：</p>
+<figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">select</span> {</div><div class="line">    <span class="keyword">case</span> <-cxt.Done():</div><div class="line">        <span class="comment">// do some clean...</span></div><div class="line">}</div></pre></td></tr></tbody></table></figure>
+<p>WithDeadline函数的作用也差不多，它返回的Context类型值同样是parent的副本，但其过期时间由deadline和parent的过期时间共同决定。当parent的过期时间早于传入的deadline时间时，返回的过期时间应与parent相同。父节点过期时，其所有的子孙节点必须同时关闭；反之，返回的父节点的过期时间则为deadline。</p>
+<p>WithTimeout函数与WithDeadline类似，只不过它传入的是从现在开始Context剩余的生命时长。他们都同样也都返回了所创建的子Context的控制权，一个CancelFunc类型的函数变量。</p>
+<p>当顶层的Request请求函数结束后，我们就可以cancel掉某个context，从而层层Goroutine根据判断cxt.Done()来结束。</p>
+<p>WithValue函数，它返回parent的一个副本，调用该副本的Value(key)方法将得到val。这样我们不光将根节点原有的值保留了，还在子孙节点中加入了新的值，注意若存在Key相同，则会被覆盖。</p>
+<h3 id="3-1-小结"><a href="#3-1-小结" class="headerlink" title="3.1 小结"></a>3.1 小结</h3><p>context包通过构建树型关系的Context，来达到上一层Goroutine能对传递给下一层Goroutine的控制。对于处理一个Request请求操作，需要采用context来层层控制Goroutine，以及传递一些变量来共享。</p>
+<blockquote>
+<ol>
+<li>Context对象的生存周期一般仅为一个请求的处理周期。即针对一个请求创建一个Context变量（它为Context树结构的根）；在请求处理结束后，撤销此ctx变量，释放资源。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="2">
+<li>每次创建一个Goroutine，要么将原有的Context传递给Goroutine，要么创建一个子Context并传递给Goroutine。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="3">
+<li>Context能灵活地存储不同类型、不同数目的值，并且使多个Goroutine安全地读写其中的值。</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="4">
+<li>当通过父Context对象创建子Context对象时，可同时获得子Context的一个撤销函数，这样父Context对象的创建环境就获得了对子Context将要被传递到的Goroutine的撤销权。</li>
+</ol>
+</blockquote>
+<ol start="5">
+<li>在子Context被传递到的goroutine中，应该对该子Context的Done信道（channel）进行监控，一旦该信道被关闭（即上层运行环境撤销了本goroutine的执行），应主动终止对当前请求信息的处理，释放资源并返回。</li>
+</ol>
+<h2 id="4-使用原则"><a href="#4-使用原则" class="headerlink" title="4 使用原则"></a>4 使用原则</h2><p>Programs that use Contexts should follow these rules to keep interfaces consistent across packages and enable static analysis tools to check context propagation:<br>使用Context的程序包需要遵循如下的原则来满足接口的一致性以及便于静态分析。</p>
+<blockquote>
+<p>. Do not store Contexts inside a struct type; instead, pass a Context explicitly to each function that needs it. The Context should be the first parameter, typically named ctx；不要把Context存在一个结构体当中，显式地传入函数。Context变量需要作为第一个参数使用，一般命名为ctx；</p>
+</blockquote>
+<blockquote>
+<p>. Do not pass a nil Context, even if a function permits it. Pass context.TODO if you are unsure about which Context to use；即使方法允许，也不要传入一个nil的Context，如果你不确定你要用什么Context的时候传一个context.TODO；</p>
+</blockquote>
+<blockquote>
+<p>. Use context Values only for request-scoped data that transits processes and APIs, not for passing optional parameters to functions；使用context的Value相关方法只应该用于在程序和接口中传递的和请求相关的元数据，不要用它来传递一些可选的参数；</p>
+</blockquote>
+<blockquote>
+<p>. The same Context may be passed to functions running in different goroutines; Contexts are safe for simultaneous use by multiple goroutines；同样的Context可以用来传递到不同的goroutine中，Context在多个goroutine中是安全的；</p>
+</blockquote>
+<hr>
+<h2 id="Context-原理"><a href="#Context-原理" class="headerlink" title="Context 原理"></a>Context 原理</h2><p>Context 的调用应该是链式的，通过WithCancel，WithDeadline，WithTimeout或WithValue派生出新的 Context。当父 Context 被取消时，其派生的所有 Context 都将取消。</p>
+<p>通过context.WithXXX都将返回新的 Context 和 CancelFunc。调用 CancelFunc 将取消子代，移除父代对子代的引用，并且停止所有定时器。未能调用 CancelFunc 将泄漏子代，直到父代被取消或定时器触发。go vet工具检查所有流程控制路径上使用 CancelFuncs。</p>
+<h2 id="遵循规则"><a href="#遵循规则" class="headerlink" title="遵循规则"></a>遵循规则</h2><p>遵循以下规则，以保持包之间的接口一致，并启用静态分析工具以检查上下文传播。</p>
+<blockquote>
+<ol>
+<li>不要将 Contexts 放入结构体，相反context应该作为第一个参数传入，命名为ctx。 func DoSomething（ctx context.Context，arg Arg）error { // … use ctx … }</li>
+<li>即使函数允许，也不要传入nil的 Context。如果不知道用哪种 Context，可以使用context.TODO()。</li>
+<li>使用context的Value相关方法只应该用于在程序和接口中传递的和请求相关的元数据，不要用它来传递一些可选的参数</li>
+<li>相同的 Context 可以传递给在不同的goroutine；Context 是并发安全的。</li>
+</ol>
+</blockquote>
+<h2 id="Context-包"><a href="#Context-包" class="headerlink" title="Context 包"></a>Context 包</h2><p>Context 结构体。<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// A Context carries a deadline, cancelation signal, and request-scoped values</span></div><div class="line"><span class="comment">// across API boundaries. Its methods are safe for simultaneous use by multiple</span></div><div class="line"><span class="comment">// goroutines.</span></div><div class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> {</div><div class="line">    <span class="comment">// Done returns a channel that is closed when this Context is canceled</span></div><div class="line">    <span class="comment">// or times out.</span></div><div class="line">    Done() <-<span class="keyword">chan</span> <span class="keyword">struct</span>{}</div><div class="line"></div><div class="line">    <span class="comment">// Err indicates why this context was canceled, after the Done channel</span></div><div class="line">    <span class="comment">// is closed.</span></div><div class="line">    Err() error</div><div class="line"></div><div class="line">    <span class="comment">// Deadline returns the time when this Context will be canceled, if any.</span></div><div class="line">    Deadline() (deadline time.Time, ok <span class="keyword">bool</span>)</div><div class="line"></div><div class="line">    <span class="comment">// Value returns the value associated with key or nil if none.</span></div><div class="line">    Value(key <span class="keyword">interface</span>{}) <span class="keyword">interface</span>{}</div><div class="line">}</div></pre></td></tr></tbody></table></figure><p></p>
+<blockquote>
+<ol>
+<li>Done()，返回一个channel。当times out或者调用cancel方法时，将会close掉。</li>
+<li>Err()，返回一个错误。该context为什么被取消掉。</li>
+<li>Deadline()，返回截止时间和ok。</li>
+<li>Value()，返回值。</li>
+</ol>
+</blockquote>
+<p>所有方法<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">Background</span><span class="params">()</span> <span class="title">Context</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">TODO</span><span class="params">()</span> <span class="title">Context</span></span></div><div class="line"><span class="function"></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithDeadline</span><span class="params">(parent Context, deadline time.Time)</span> <span class="params">(Context, CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithTimeout</span><span class="params">(parent Context, timeout time.Duration)</span> <span class="params">(Context, CancelFunc)</span></span></div><div class="line"><span class="function"><span class="title">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key, val <span class="keyword">interface</span>{})</span> <span class="title">Context</span></span></div></pre></td></tr></tbody></table></figure><p></p>
+<p>上面可以看到Context是一个接口，想要使用就得实现其方法。在context包内部已经为我们实现好了两个空的Context，可以通过调用Background()和TODO()方法获取。一般的将它们作为Context的根，往下派生。</p>
+<h2 id="WithCancel-例子"><a href="#WithCancel-例子" class="headerlink" title="WithCancel 例子"></a>WithCancel 例子</h2><p>WithCancel 以一个新的 Done channel 返回一个父 Context 的拷贝。<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="number">229</span>  <span class="function"><span class="keyword">func</span> <span class="title">WithCancel</span><span class="params">(parent Context)</span> <span class="params">(ctx Context, cancel CancelFunc)</span></span> {</div><div class="line"><span class="number">230</span>      c := newCancelCtx(parent)</div><div class="line"><span class="number">231</span>      propagateCancel(parent, &c)</div><div class="line"><span class="number">232</span>      <span class="keyword">return</span> &c, <span class="function"><span class="keyword">func</span><span class="params">()</span></span> { c.cancel(<span class="literal">true</span>, Canceled) }</div><div class="line"><span class="number">233</span>  }</div><div class="line"><span class="number">234</span>  </div><div class="line"><span class="number">235</span>  <span class="comment">// newCancelCtx returns an initialized cancelCtx.</span></div><div class="line"><span class="number">236</span>  <span class="function"><span class="keyword">func</span> <span class="title">newCancelCtx</span><span class="params">(parent Context)</span> <span class="title">cancelCtx</span></span> {</div><div class="line"><span class="number">237</span>      <span class="keyword">return</span> cancelCtx{</div><div class="line"><span class="number">238</span>          Context: parent,</div><div class="line"><span class="number">239</span>          done:    <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>{}),</div><div class="line"><span class="number">240</span>      }</div><div class="line"><span class="number">241</span>  }</div></pre></td></tr></tbody></table></figure><p></p>
+<p>此示例演示使用一个可取消的上下文，以防止 goroutine 泄漏。示例函数结束时，defer 调用 cancel 方法，gen goroutine 将返回而不泄漏。<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">    <span class="string">"context"</span></div><div class="line">    <span class="string">"fmt"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {</div><div class="line">    <span class="comment">// gen generates integers in a separate goroutine and</span></div><div class="line">    <span class="comment">// sends them to the returned channel.</span></div><div class="line">    <span class="comment">// The callers of gen need to cancel the context once</span></div><div class="line">    <span class="comment">// they are done consuming generated integers not to leak</span></div><div class="line">    <span class="comment">// the internal goroutine started by gen.</span></div><div class="line">    gen := <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context)</span> <-<span class="title">chan</span> <span class="title">int</span></span> {</div><div class="line">        dst := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</div><div class="line">        n := <span class="number">1</span></div><div class="line">        <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> {</div><div class="line">            <span class="keyword">for</span> {</div><div class="line">                <span class="keyword">select</span> {</div><div class="line">                <span class="keyword">case</span> <-ctx.Done():</div><div class="line">                    <span class="keyword">return</span> <span class="comment">// returning not to leak the goroutine</span></div><div class="line">                <span class="keyword">case</span> dst <- n:</div><div class="line">                    n++</div><div class="line">                }</div><div class="line">            }</div><div class="line">        }()</div><div class="line">        <span class="keyword">return</span> dst</div><div class="line">    }</div><div class="line"></div><div class="line">    ctx, cancel := context.WithCancel(context.Background())</div><div class="line">    <span class="keyword">defer</span> cancel() <span class="comment">// cancel when we are finished consuming integers</span></div><div class="line"></div><div class="line">    <span class="keyword">for</span> n := <span class="keyword">range</span> gen(ctx) {</div><div class="line">        fmt.Println(n)</div><div class="line">        <span class="keyword">if</span> n == <span class="number">5</span> {</div><div class="line">            <span class="keyword">break</span></div><div class="line">        }</div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure><p></p>
+<p>WithDeadline 例子<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="number">369</span>  <span class="function"><span class="keyword">func</span> <span class="title">WithDeadline</span><span class="params">(parent Context, deadline time.Time)</span> <span class="params">(Context, CancelFunc)</span></span> {</div><div class="line"><span class="number">370</span>      <span class="keyword">if</span> cur, ok := parent.Deadline(); ok && cur.Before(deadline) {</div><div class="line"><span class="number">371</span>          <span class="comment">// The current deadline is already sooner than the new one.</span></div><div class="line"><span class="number">372</span>          <span class="keyword">return</span> WithCancel(parent)</div><div class="line"><span class="number">373</span>      }</div><div class="line"><span class="number">374</span>      c := &timerCtx{</div><div class="line"><span class="number">375</span>          cancelCtx: newCancelCtx(parent),</div><div class="line"><span class="number">376</span>          deadline:  deadline,</div><div class="line"><span class="number">377</span>      }</div><div class="line">......</div></pre></td></tr></tbody></table></figure><p></p>
+<p>可以清晰的看到，当派生出的子 Context 的deadline在父Context之后，直接返回了一个父Context的拷贝。故语义上等效为父。</p>
+<p>WithDeadline 的最后期限调整为不晚于 d 返回父上下文的副本。如果父母的截止日期已经早于 d，WithDeadline （父，d） 是在语义上等效为父。返回的上下文完成的通道关闭的最后期限期满后，返回的取消函数调用时，或当父上下文完成的通道关闭，以先发生者为准。</p>
+<p>看看官方例子：<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">    <span class="string">"context"</span></div><div class="line">    <span class="string">"fmt"</span></div><div class="line">    <span class="string">"time"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {</div><div class="line">    d := time.Now().Add(<span class="number">50</span> * time.Millisecond)</div><div class="line">    ctx, cancel := context.WithDeadline(context.Background(), d)</div><div class="line"></div><div class="line">    <span class="comment">// Even though ctx will be expired, it is good practice to call its</span></div><div class="line">    <span class="comment">// cancelation function in any case. Failure to do so may keep the</span></div><div class="line">    <span class="comment">// context and its parent alive longer than necessary.</span></div><div class="line">    <span class="keyword">defer</span> cancel()</div><div class="line"></div><div class="line">    <span class="keyword">select</span> {</div><div class="line">    <span class="keyword">case</span> <-time.After(<span class="number">1</span> * time.Second):</div><div class="line">        fmt.Println(<span class="string">"overslept"</span>)</div><div class="line">    <span class="keyword">case</span> <-ctx.Done():</div><div class="line">        fmt.Println(ctx.Err())</div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure><p></p>
+<p>WithTimeout 例子<br>WithTimeout 返回 WithDeadline(parent, time.Now().Add(timeout))。<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="number">436</span>  <span class="function"><span class="keyword">func</span> <span class="title">WithTimeout</span><span class="params">(parent Context, timeout time.Duration)</span> <span class="params">(Context, CancelFunc)</span></span> {</div><div class="line"><span class="number">437</span>      <span class="keyword">return</span> WithDeadline(parent, time.Now().Add(timeout))</div><div class="line"><span class="number">438</span>  }</div></pre></td></tr></tbody></table></figure><p></p>
+<p>看看官方例子：<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">    <span class="string">"context"</span></div><div class="line">    <span class="string">"fmt"</span></div><div class="line">    <span class="string">"time"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {</div><div class="line">    <span class="comment">// Pass a context with a timeout to tell a blocking function that it</span></div><div class="line">    <span class="comment">// should abandon its work after the timeout elapses.</span></div><div class="line">    ctx, cancel := context.WithTimeout(context.Background(), <span class="number">50</span>*time.Millisecond)</div><div class="line">    <span class="keyword">defer</span> cancel()</div><div class="line"></div><div class="line">    <span class="keyword">select</span> {</div><div class="line">    <span class="keyword">case</span> <-time.After(<span class="number">1</span> * time.Second):</div><div class="line">        fmt.Println(<span class="string">"overslept"</span>)</div><div class="line">    <span class="keyword">case</span> <-ctx.Done():</div><div class="line">        fmt.Println(ctx.Err()) <span class="comment">// prints "context deadline exceeded"</span></div><div class="line">    }</div><div class="line">}</div></pre></td></tr></tbody></table></figure><p></p>
+<p>WithValue 例子<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="number">454</span>  <span class="function"><span class="keyword">func</span> <span class="title">WithValue</span><span class="params">(parent Context, key, val <span class="keyword">interface</span>{})</span> <span class="title">Context</span></span> {</div><div class="line"><span class="number">454</span>      <span class="keyword">if</span> key == <span class="literal">nil</span> {</div><div class="line"><span class="number">455</span>          <span class="built_in">panic</span>(<span class="string">"nil key"</span>)</div><div class="line"><span class="number">456</span>      }</div><div class="line"><span class="number">457</span>      <span class="keyword">if</span> !reflect.TypeOf(key).Comparable() {</div><div class="line"><span class="number">458</span>          <span class="built_in">panic</span>(<span class="string">"key is not comparable"</span>)</div><div class="line"><span class="number">459</span>      }</div><div class="line"><span class="number">460</span>      <span class="keyword">return</span> &valueCtx{parent, key, val}</div><div class="line"><span class="number">461</span>  }</div></pre></td></tr></tbody></table></figure><p></p>
+<p>WithValue 返回的父与键关联的值在 val 的副本。</p>
+<p>使用上下文值仅为过渡进程和 Api 的请求范围的数据，而不是将可选参数传递给函数。</p>
+<p>提供的键必须是可比性和应该不是字符串类型或任何其他内置的类型以避免包使用的上下文之间的碰撞。WithValue 用户应该定义自己的键的类型。为了避免分配分配给接口 {} 时，上下文键经常有具体类型结构 {}。另外，导出的上下文关键变量静态类型应该是一个指针或接口。</p>
+<p>看看官方例子：<br></p><figure class="highlight go"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">    <span class="string">"context"</span></div><div class="line">    <span class="string">"fmt"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {</div><div class="line">    <span class="keyword">type</span> favContextKey <span class="keyword">string</span></div><div class="line"></div><div class="line">    f := <span class="function"><span class="keyword">func</span><span class="params">(ctx context.Context, k favContextKey)</span></span> {</div><div class="line">        <span class="keyword">if</span> v := ctx.Value(k); v != <span class="literal">nil</span> {</div><div class="line">            fmt.Println(<span class="string">"found value:"</span>, v)</div><div class="line">            <span class="keyword">return</span></div><div class="line">        }</div><div class="line">        fmt.Println(<span class="string">"key not found:"</span>, k)</div><div class="line">    }</div><div class="line"></div><div class="line">    k := favContextKey(<span class="string">"language"</span>)</div><div class="line">    ctx := context.WithValue(context.Background(), k, <span class="string">"Go"</span>)</div><div class="line"></div><div class="line">    f(ctx, k)</div><div class="line">    f(ctx, favContextKey(<span class="string">"color"</span>))</div><div class="line">}</div></pre></td></tr></tbody></table></figure><p></p>
+<p>参考：<br>[1] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmdvbGFuZy5vcmcvY29udGV4dA==" title="https://blog.golang.org/context">https://blog.golang.org/context<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cDovL2Jsb2cuZ29sYW5nLm9yZy9waXBlbGluZXM=" title="http://blog.golang.org/pipelines">http://blog.golang.org/pipelines<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cDovL3N0dWR5Z29sYW5nLmNvbS9hcnRpY2xlcy81MTMx" title="http://studygolang.com/articles/5131">http://studygolang.com/articles/5131<i class="fa fa-external-link"></i></span><br>[4] <span class="exturl" data-url="aHR0cDovL2Jsb2cuY3Nkbi5uZXQvc3J5YW4vYXJ0aWNsZS9kZXRhaWxzLzUxOTY5MTI5" title="http://blog.csdn.net/sryan/article/details/51969129">http://blog.csdn.net/sryan/article/details/51969129<i class="fa fa-external-link"></i></span><br>[5] <span class="exturl" data-url="aHR0cHM6Ly9wZXRlci5ib3VyZ29uLm9yZy9ibG9nLzIwMTYvMDcvMTEvY29udGV4dC5odG1s" title="https://peter.bourgon.org/blog/2016/07/11/context.html">https://peter.bourgon.org/blog/2016/07/11/context.html<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL3d3dy50dWljb29sLmNvbS9hcnRpY2xlcy92YWllQWJR" title="http://www.tuicool.com/articles/vaieAbQ">http://www.tuicool.com/articles/vaieAbQ<i class="fa fa-external-link"></i></span></p>
+</body></html>
+      
+    </div>
+
+    
+      
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Go/" rel="tag"># Go</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/04/01/docker看veth对/" rel="next" title="docker看veth对">
+                <i class="fa fa-chevron-left"></i> docker看veth对
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/04/15/centos7安装kernel-4-x/" rel="prev" title="centos7安装kernel 4.x">
+                centos7安装kernel 4.x <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-什么是Context"><span class="nav-number">1.</span> <span class="nav-text">1 什么是Context</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-context包"><span class="nav-number">2.</span> <span class="nav-text">2 context包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-context使用"><span class="nav-number">3.</span> <span class="nav-text">3 context使用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-小结"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 小结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-使用原则"><span class="nav-number">4.</span> <span class="nav-text">4 使用原则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-原理"><span class="nav-number">5.</span> <span class="nav-text">Context 原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#遵循规则"><span class="nav-number">6.</span> <span class="nav-text">遵循规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-包"><span class="nav-number">7.</span> <span class="nav-text">Context 包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#WithCancel-例子"><span class="nav-number">8.</span> <span class="nav-text">WithCancel 例子</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>

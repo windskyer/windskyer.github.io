@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/font-awesome@4/css/font-awesome.min.css"/>
+
+<link rel="stylesheet" href="/css/main.css?v=7.0.1"/>
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.0.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.0.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.0.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.0.1',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false,"dimmer":true},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+    
+
+
+
+
+  <meta name="description" content="1. Dockerfile的说明dockerfile指令忽略大小写，建议大写，#作为注释，每行只支持一条指令，指令可以带多个参数。 dockerfile指令分为构建指令和设置指令。  构建指令：用于构建image，其指定的操作不会在运行image的容器中执行。 设置指令：用于设置image的属性，其指定的操作会在运行image的容器中执行。">
+<meta name="keywords" content="docker">
+<meta property="og:type" content="article">
+<meta property="og:title" content="dockerfile">
+<meta property="og:url" content="https://www.flftuu.com/2019/03/21/dockerfile/index.html">
+<meta property="og:site_name" content="ZWEI">
+<meta property="og:description" content="1. Dockerfile的说明dockerfile指令忽略大小写，建议大写，#作为注释，每行只支持一条指令，指令可以带多个参数。 dockerfile指令分为构建指令和设置指令。  构建指令：用于构建image，其指定的操作不会在运行image的容器中执行。 设置指令：用于设置image的属性，其指定的操作会在运行image的容器中执行。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-04-02T12:15:51.401Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="dockerfile">
+<meta name="twitter:description" content="1. Dockerfile的说明dockerfile指令忽略大小写，建议大写，#作为注释，每行只支持一条指令，指令可以带多个参数。 dockerfile指令分为构建指令和设置指令。  构建指令：用于构建image，其指定的操作不会在运行image的容器中执行。 设置指令：用于设置image的属性，其指定的操作会在运行image的容器中执行。">
+
+
+
+
+
+
+  <link rel="canonical" href="https://www.flftuu.com/2019/03/21/dockerfile/"/>
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>dockerfile | ZWEI</title>
+  
+
+
+
+
+  <script async src="//www.googletagmanager.com/gtag/js?id=[object Object]"></script>
+  <script>
+    var host = window.location.hostname;
+    if (host !== "localhost" || !true) {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-107288724-1');
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">ZWEI</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <h1 class="site-subtitle" itemprop="description">Time flies.</h1>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br/>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br/>标签<span class="badge">43</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br/>分类<span class="badge">8</span></a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br/>归档<span class="badge">87</span></a>
+
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br/>搜索</a>
+        </li>
+      
+    </ul>
+  
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://www.flftuu.com/2019/03/21/dockerfile/"/>
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zwei"/>
+      <meta itemprop="description" content="Believe in yourself."/>
+      <meta itemprop="image" content="/images/avatar.gif"/>
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ZWEI"/>
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">dockerfile
+
+              
+            
+          </h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-03-21 17:41:19" itemprop="dateCreated datePublished" datetime="2019-03-21T17:41:19+08:00">2019-03-21</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-04-02 20:15:51" itemprop="dateModified" datetime="2019-04-02T20:15:51+08:00">2019-04-02</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2019/03/21/dockerfile/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/03/21/dockerfile/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon"
+            >
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+            <div class="post-symbolscount">
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">本文字数：</span>
+                
+                <span title="本文字数">4.8k</span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">4 分钟</span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <html><head></head><body><h1 id="1-Dockerfile的说明"><a href="#1-Dockerfile的说明" class="headerlink" title="1. Dockerfile的说明"></a>1. Dockerfile的说明</h1><p>dockerfile指令忽略大小写，建议大写，#作为注释，每行只支持一条指令，指令可以带多个参数。</p>
+<p>dockerfile指令分为构建指令和设置指令。</p>
+<ol>
+<li>构建指令：用于构建image，其指定的操作不会在运行image的容器中执行。</li>
+<li>设置指令：用于设置image的属性，其指定的操作会在运行image的容器中执行。</li>
+</ol>
+<a id="more"></a>
+<p><amp-auto-ads type="adsense" data-ad-client="ca-pub-5216394795966395"></amp-auto-ads></p>
+<h1 id="2-Dockerfile指令说明"><a href="#2-Dockerfile指令说明" class="headerlink" title="2. Dockerfile指令说明"></a>2. Dockerfile指令说明</h1><h2 id="2-1-FROM（指定基础镜像）-构建指令"><a href="#2-1-FROM（指定基础镜像）-构建指令" class="headerlink" title="2.1. FROM（指定基础镜像）[构建指令]"></a>2.1. FROM（指定基础镜像）[构建指令]</h2><p>该命令用来指定基础镜像，在基础镜像的基础上修改数据从而构建新的镜像。基础镜像可以是本地仓库也可以是远程仓库。</p>
+<p>指令有两种格式：</p>
+<ol>
+<li>FROM <code>image</code>   【默认为latest版本】</li>
+<li>FROM <code>image</code>:<code>tag</code>     【指定版本】</li>
+</ol>
+<h2 id="2-2-MAINTAINER（镜像创建者信息）-构建指令"><a href="#2-2-MAINTAINER（镜像创建者信息）-构建指令" class="headerlink" title="2.2. MAINTAINER（镜像创建者信息）[构建指令]"></a>2.2. MAINTAINER（镜像创建者信息）[构建指令]</h2><p>将镜像制作者（维护者）的信息写入image中，执行docker inspect时会输出该信息。</p>
+<p>格式：MAINTAINER <code>name</code></p>
+<h2 id="2-3-RUN（安装软件用）-构建指令"><a href="#2-3-RUN（安装软件用）-构建指令" class="headerlink" title="2.3. RUN（安装软件用）[构建指令]"></a>2.3. RUN（安装软件用）[构建指令]</h2><p>RUN可以运行任何被基础镜像支持的命令（即在基础镜像上执行一个进程），可以使用多条RUN指令，指令较长可以使用\来换行。</p>
+<p>指令有两种格式：</p>
+<ol>
+<li>RUN <code>command</code> (the command is run in a shell - <code>/bin/sh -c</code>)</li>
+<li>RUN [“executable”, “param1”, “param2” … ] (exec form) <ul>
+<li>指定使用其他终端实现，使用exec执行。</li>
+<li>例子：RUN[“/bin/bash”,”-c”,”echo hello”]</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-4-CMD（设置container启动时执行的操作）-设置指令"><a href="#2-4-CMD（设置container启动时执行的操作）-设置指令" class="headerlink" title="2.4. CMD（设置container启动时执行的操作）[设置指令]"></a>2.4. CMD（设置container启动时执行的操作）[设置指令]</h2><p>用于容器启动时的指定操作，可以是自定义脚本或命令，只执行一次，多个默认执行最后一个。</p>
+<p>指令有三种格式：</p>
+<ol>
+<li>CMD [“executable”,”param1”,”param2”] (like an exec, this is the preferred form) <ul>
+<li>运行一个可执行文件并提供参数。</li>
+</ul>
+</li>
+<li>CMD command param1 param2 (as a shell) <ul>
+<li>直接执行shell命令，默认以/bin/sh -c执行。</li>
+</ul>
+</li>
+<li>CMD [“param1”,”param2”] (as default parameters to ENTRYPOINT) <ul>
+<li>和ENTRYPOINT配合使用，只作为完整命令的参数部分。</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-5-ENTRYPOINT（设置container启动时执行的操作）-设置指令"><a href="#2-5-ENTRYPOINT（设置container启动时执行的操作）-设置指令" class="headerlink" title="2.5. ENTRYPOINT（设置container启动时执行的操作）[设置指令]"></a>2.5. ENTRYPOINT（设置container启动时执行的操作）[设置指令]</h2><p>指定容器启动时执行的命令，若多次设置只执行最后一次。</p>
+<p>ENTRYPOINT翻译为“进入点”，它的功能可以让容器表现得像一个可执行程序一样。</p>
+<p>例子：ENTRYPOINT [“/bin/echo”] ，那么docker build出来的镜像以后的容器功能就像一个/bin/echo程序，docker run -it imageecho “this is a test”，就会输出对应的字符串。这个imageecho镜像对应的容器表现出来的功能就像一个echo程序一样。</p>
+<p>指令有两种格式：</p>
+<ol>
+<li><p>ENTRYPOINT [“executable”, “param1”, “param2”] (like an exec, the preferred form)</p>
+<ul>
+<li><p>和CMD配合使用，CMD则作为完整命令的参数部分，ENTRYPOINT以JSON格式指定执行的命令部分。CMD可以为ENTRYPOINT提供可变参数，不需要变动的参数可以写在ENTRYPOINT里面。</p>
+</li>
+<li><p>例子：</p>
+<p>ENTRYPOINT [“/usr/bin/ls”,”-a”]</p>
+<p>CMD [“-l”] </p>
+</li>
+</ul>
+</li>
+<li><p>ENTRYPOINT command param1 param2 (as a shell)</p>
+<ul>
+<li>独自使用，即和CMD类似，如果CMD也是个完整命令[CMD command param1 param2 (as a shell) ]，那么会相互覆盖，只执行最后一个CMD或ENTRYPOINT。</li>
+<li>例子：ENTRYPOINT ls -l</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-6-USER（设置container容器启动的登录用户）-设置指令"><a href="#2-6-USER（设置container容器启动的登录用户）-设置指令" class="headerlink" title="2.6. USER（设置container容器启动的登录用户）[设置指令]"></a>2.6. USER（设置container容器启动的登录用户）[设置指令]</h2><p>设置启动容器的用户，默认为root用户。</p>
+<p>格式：USER daemon</p>
+<h2 id="2-7-EXPOSE（指定容器需要映射到宿主机的端口）-设置指令"><a href="#2-7-EXPOSE（指定容器需要映射到宿主机的端口）-设置指令" class="headerlink" title="2.7. EXPOSE（指定容器需要映射到宿主机的端口）[设置指令]"></a>2.7. EXPOSE（指定容器需要映射到宿主机的端口）[设置指令]</h2><p>该指令会将容器中的端口映射为宿主机中的端口[确保宿主机的端口号没有被使用]。通过宿主机IP和映射后的端口即可访问容器[避免每次运行容器时IP随机生成不固定的问题]。前提是EXPOSE设置映射端口，运行容器时加上-p参数指定EXPOSE设置的端口。EXPOSE可以设置多个端口号，相应地运行容器配套多次使用-p参数。可以通过docker port +容器需要映射的端口号和容器ID来参考宿主机的映射端口。</p>
+<p>格式：EXPOSE <code>port</code> [<code>port</code>…]</p>
+<h2 id="2-8-ENV（用于设置环境变量）-构建指令"><a href="#2-8-ENV（用于设置环境变量）-构建指令" class="headerlink" title="2.8. ENV（用于设置环境变量）[构建指令]"></a>2.8. ENV（用于设置环境变量）[构建指令]</h2><p>在image中设置环境变量[以键值对的形式]，设置之后RUN命令可以使用该环境变量，在容器启动后也可以通过docker inspect查看环境变量或者通过 docker run –env key=value设置或修改环境变量。</p>
+<p>格式：ENV <code>key</code> <code>value</code> </p>
+<p>例子：ENV JAVA_HOME /path/to/java/dirent</p>
+<h2 id="2-9-ADD（从src复制文件到container的dest路径）-构建指令"><a href="#2-9-ADD（从src复制文件到container的dest路径）-构建指令" class="headerlink" title="2.9. ADD（从src复制文件到container的dest路径）[构建指令]"></a>2.9. ADD（从src复制文件到container的dest路径）[构建指令]</h2><p>复制指定的src到容器中的dest，其中src是相对被构建的源目录的相对路径，可以是文件或目录的路径，也可以是一个远程的文件url。<code>dest</code> 是container中的绝对路径。所有拷贝到container中的文件和文件夹权限为0755，uid和gid为0。</p>
+<ul>
+<li>如果src是一个目录，那么会将该目录下的所有文件添加到container中，不包括目录；</li>
+<li>如果src文件是可识别的压缩格式，则docker会帮忙解压缩（注意压缩格式）；</li>
+<li>如果<code>src</code>是文件且<code>dest</code>中不使用斜杠结束，则会将<code>dest</code>视为文件，<code>src</code>的内容会写入<code>dest</code>；</li>
+<li>如果<code>src</code>是文件且<code>dest</code>中使用斜杠结束，则会<code>src</code>文件拷贝到<code>dest</code>目录下。</li>
+</ul>
+<p>格式：ADD <code>src</code> <code>dest</code> </p>
+<h2 id="2-10-COPY（复制文件）"><a href="#2-10-COPY（复制文件）" class="headerlink" title="2.10. COPY（复制文件）"></a>2.10. COPY（复制文件）</h2><p>复制本地主机的src为容器中的dest，目标路径不存在时会自动创建。</p>
+<p>格式：COPY <code>src</code> <code>dest</code></p>
+<h2 id="2-11-VOLUME（指定挂载点）-设置指令"><a href="#2-11-VOLUME（指定挂载点）-设置指令" class="headerlink" title="2.11. VOLUME（指定挂载点）[设置指令]"></a>2.11. VOLUME（指定挂载点）[设置指令]</h2><p>创建一个可以从本地主机或其他容器挂载的挂载点，使容器中的一个目录具有持久化存储数据的功能，该目录可以被容器本身使用也可以被其他容器使用。</p>
+<p>格式：VOLUME [“<code>mountpoint</code>“] </p>
+<p>其他容器使用共享数据卷：docker run -t -i -rm -volumes-from container1 image2 bash [container1为第一个容器的ID，image2为第二个容器运行image的名字。]</p>
+<h2 id="2-12-WORKDIR（切换目录）-设置指令"><a href="#2-12-WORKDIR（切换目录）-设置指令" class="headerlink" title="2.12. WORKDIR（切换目录）[设置指令]"></a>2.12. WORKDIR（切换目录）[设置指令]</h2><p>相当于cd命令，可以多次切换目录，为RUN,CMD,ENTRYPOINT配置工作目录。可以使用多个WORKDIR的命令，后续命令如果是相对路径则是在上一级路径的基础上执行[类似cd的功能]。</p>
+<p>格式：WORKDIR /path/to/workdir</p>
+<h2 id="2-13-ONBUILD（在子镜像中执行）"><a href="#2-13-ONBUILD（在子镜像中执行）" class="headerlink" title="2.13. ONBUILD（在子镜像中执行）"></a>2.13. ONBUILD（在子镜像中执行）</h2><p>当所创建的镜像作为其他新创建镜像的基础镜像时执行的操作命令，即在创建本镜像时不运行，当作为别人的基础镜像时再在构建时运行（可认为基础镜像为父镜像，而该命令即在它的子镜像构建时运行，相当于在子镜像构建时多加了一些命令）。</p>
+<p>格式：ONBUILD <code>Dockerfile关键字</code> </p>
+<h1 id="3-docker-build"><a href="#3-docker-build" class="headerlink" title="3. docker build"></a>3. docker build</h1><figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line">Usage: docker build [OPTIONS] PATH | URL | -</div><div class="line"></div><div class="line">Build a new image from the <span class="built_in">source</span> code at PATH</div><div class="line"></div><div class="line">-c, --cpu-shares=0                      CPU shares (relative weight)</div><div class="line"></div><div class="line">--cgroup-parent=                       Optional parent cgroup <span class="keyword">for</span> the container</div><div class="line"></div><div class="line">--cpu-period=0                           Limit the CPU CFS (Completely Fair Scheduler) period</div><div class="line"></div><div class="line">--cpu-quota=0                            Limit the CPU CFS (Completely Fair Scheduler) quota</div><div class="line"></div><div class="line">--cpuset-cpus=                           CPUs <span class="keyword">in</span> <span class="built_in">which</span> to allow execution (0-3, 0,1)</div><div class="line"></div><div class="line">--cpuset-mems=                         MEMs <span class="keyword">in</span> <span class="built_in">which</span> to allow execution (0-3, 0,1)</div><div class="line"></div><div class="line">--<span class="built_in">disable</span>-content-trust=<span class="literal">true</span>       Skip image verification</div><div class="line"></div><div class="line">-f, --file=                                     Name of the Dockerfile (Default is <span class="string">'PATH/Dockerfile'</span>)</div><div class="line"></div><div class="line">--force-rm=<span class="literal">false</span>                          Always remove intermediate containers</div><div class="line"></div><div class="line">--<span class="built_in">help</span>=<span class="literal">false</span>                                 Print usage</div><div class="line"></div><div class="line">-m, --memory=                          Memory <span class="built_in">limit</span></div><div class="line"></div><div class="line">--memory-swap=                       Total memory (memory + swap), <span class="string">'-1'</span> to <span class="built_in">disable</span> swap</div><div class="line"></div><div class="line">--no-cache=<span class="literal">false</span>                        Do not use cache when building the image</div><div class="line"></div><div class="line">--pull=<span class="literal">false</span>                                 Always attempt to pull a newer version of the image</div><div class="line"></div><div class="line">-q, --quiet=<span class="literal">false</span>                         Suppress the verbose output generated by the containers</div><div class="line"></div><div class="line">--rm=<span class="literal">true</span>                                  Remove intermediate containers after a successful build</div><div class="line"></div><div class="line">-t, --tag=                                   Repository name (and optionally a tag) <span class="keyword">for</span> the image</div><div class="line"></div><div class="line">--<span class="built_in">ulimit</span>=[] Ulimit options</div></pre></td></tr></tbody></table></figure>
+</body></html>
+      
+    </div>
+
+    
+      
+
+  <div class="popular-posts-header">举荐文章</div>
+  <ul class="popular-posts">
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/05/10/debian9-8-docker-ce/" rel="bookmark">debian-docker-ce</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/26/docker-install/" rel="bookmark">CentOS7 安装Docker-CE</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/03/20/docker架构/" rel="bookmark">docker架构</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/10/09/harbor-能力测试/" rel="bookmark">harbor 能力测试</a></div>
+      
+    </li>
+  
+    <li class="popular-posts-item">
+      
+      
+      <div class="popular-posts-title"><a href="/2019/11/06/k8s容器固定ip/" rel="bookmark">k8s容器固定ip</a></div>
+      
+    </li>
+  
+  </ul>
+
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/docker/" rel="tag"># docker</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/20/docker架构/" rel="next" title="docker架构">
+                <i class="fa fa-chevron-left"></i> docker架构
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/03/22/cAdvisor/" rel="prev" title="cAdvisor">
+                cAdvisor <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+          </div>
+          
+
+   
+                                                                                                                                                                                                                                         
+  
+    <div class="comments" id="comments">
+    </div>
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zwei</p>
+              <p class="site-description motion-element" itemprop="description">Believe in yourself.</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">87</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">7</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">40</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-inline">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-globe"></i>
+                
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <span class="exturl" data-url="aHR0cDovL3d3dy50YW5nLWxlaS5jb20v" title="http://www.tang-lei.com/">TangLei</span>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+            
+          
+          <div align="center">
+    <h5 class="widget-title feed-link motion-element">Advertising Position</h5>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- sidebar200 -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:200px;height:200px"
+     data-ad-client="ca-pub-5216394795966395"
+     data-ad-slot="7526418181"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+ 
+</div>
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+      
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-Dockerfile的说明"><span class="nav-number">1.</span> <span class="nav-text">1. Dockerfile的说明</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-Dockerfile指令说明"><span class="nav-number">2.</span> <span class="nav-text">2. Dockerfile指令说明</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-FROM（指定基础镜像）-构建指令"><span class="nav-number">2.1.</span> <span class="nav-text">2.1. FROM（指定基础镜像）[构建指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-MAINTAINER（镜像创建者信息）-构建指令"><span class="nav-number">2.2.</span> <span class="nav-text">2.2. MAINTAINER（镜像创建者信息）[构建指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-RUN（安装软件用）-构建指令"><span class="nav-number">2.3.</span> <span class="nav-text">2.3. RUN（安装软件用）[构建指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-4-CMD（设置container启动时执行的操作）-设置指令"><span class="nav-number">2.4.</span> <span class="nav-text">2.4. CMD（设置container启动时执行的操作）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-5-ENTRYPOINT（设置container启动时执行的操作）-设置指令"><span class="nav-number">2.5.</span> <span class="nav-text">2.5. ENTRYPOINT（设置container启动时执行的操作）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-6-USER（设置container容器启动的登录用户）-设置指令"><span class="nav-number">2.6.</span> <span class="nav-text">2.6. USER（设置container容器启动的登录用户）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-7-EXPOSE（指定容器需要映射到宿主机的端口）-设置指令"><span class="nav-number">2.7.</span> <span class="nav-text">2.7. EXPOSE（指定容器需要映射到宿主机的端口）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-8-ENV（用于设置环境变量）-构建指令"><span class="nav-number">2.8.</span> <span class="nav-text">2.8. ENV（用于设置环境变量）[构建指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-9-ADD（从src复制文件到container的dest路径）-构建指令"><span class="nav-number">2.9.</span> <span class="nav-text">2.9. ADD（从src复制文件到container的dest路径）[构建指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-10-COPY（复制文件）"><span class="nav-number">2.10.</span> <span class="nav-text">2.10. COPY（复制文件）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-11-VOLUME（指定挂载点）-设置指令"><span class="nav-number">2.11.</span> <span class="nav-text">2.11. VOLUME（指定挂载点）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-12-WORKDIR（切换目录）-设置指令"><span class="nav-number">2.12.</span> <span class="nav-text">2.12. WORKDIR（切换目录）[设置指令]</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-13-ONBUILD（在子镜像中执行）"><span class="nav-number">2.13.</span> <span class="nav-text">2.13. ONBUILD（在子镜像中执行）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-docker-build"><span class="nav-number">3.</span> <span class="nav-text">3. docker build</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+    <div id="sidebar-dimmer"></div>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zwei</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">339k</span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">5:08</span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-user"></i>
+    </span>
+    <span class="site-uv" title="总访客量">
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="post-meta-divider">|</span>
+  
+
+  
+    <span class="post-meta-item-icon">
+      <i class="fa fa-eye"></i>
+    </span>
+    <span class="site-pv" title="总访问量">
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="//cdn.jsdelivr.net/npm/jquery@2/dist/jquery.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.min.js"></script>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/velocity-animate@1/velocity.ui.min.js"></script>
+
+
+  
+
+
+  <script src="/js/src/utils.js?v=7.0.1"></script>
+
+  <script src="/js/src/motion.js?v=7.0.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/src/affix.js?v=7.0.1"></script>
+
+  <script src="/js/src/schemes/pisces.js?v=7.0.1"></script>
+
+
+
+
+  
+  <script src="/js/src/scrollspy.js?v=7.0.1"></script>
+<script src="/js/src/post-details.js?v=7.0.1"></script>
+
+
+
+  
+
+
+  <script src="/js/src/bootstrap.js?v=7.0.1"></script>
+
+
+  
+  
+  
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/leancloud-storage@3/dist/av-min.js"></script>
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: false,
+    appId: 'CpuddovleuIlzFbc94tjFrl7-gzGzoHsz',
+    appKey: 'mlwFPSUS26wp4tD3UHEVupy5',
+    placeholder: 'Just go go',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+</script>
+
+
+
+
+  
+
+
+  
+  <script>
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+        // ref: https://github.com/ForbesLindesay/unescape-html
+        var unescapeHtml = function(html) {
+          return String(html)
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, '\'')
+            .replace(/&#x3A;/g, ':')
+            // replace all the other &#x; chars
+            .replace(/&#(\d+);/g, function (m, p) { return String.fromCharCode(p); })
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&');
+        };
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                content = unescapeHtml(content);
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url).replace(/\/{2,}/g, '/');
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x"></i></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x"></i></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  <script src="/js/src/js.cookie.js?v=7.0.1"></script>
+  <script src="/js/src/scroll-cookie.js?v=7.0.1"></script>
+
+
+  
+  <script src="/js/src/exturl.js?v=7.0.1"></script>
+
+
+  
+
+  
+
+</body>
+</html>
