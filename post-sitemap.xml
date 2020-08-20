@@ -8,6 +8,22 @@
     </url>
 
     <url>
+        <loc>https://www.flftuu.com/2020/04/26/nginx%E6%97%A5%E5%BF%97%E6%97%B6%E9%97%B4%E8%BE%93%E5%87%BA/</loc>
+        <lastmod>2020-08-20T08:54:31.061Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
+        <loc>https://www.flftuu.com/2020/04/20/k8s%E8%8A%82%E7%82%B9%E4%B8%8B%E7%BA%BF/</loc>
+        <lastmod>2020-08-20T08:52:05.016Z</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+
+    </url>
+
+    <url>
         <loc>https://www.flftuu.com/2020/04/18/Golang-sync-Mutex%E7%94%A8%E6%B3%95%EF%BC%88%E4%BA%92%E6%96%A5%E9%87%8F%E7%94%A8%E6%B3%95%EF%BC%89/</loc>
         <lastmod>2020-06-10T10:14:47.913Z</lastmod>
         <changefreq>weekly</changefreq>
